@@ -90,8 +90,10 @@ In this part you may go all out for constructing a best fitting model for predic
 Update your predictions using your complex model to provide point estimates and CI.
 
 ```{r predict-model2, echo=FALSE}
+suppressMessages(library(gbm))
+model1 =gbm(price~.,data =ames_train,n.trees =5000, interaction.depth =15)
 # replace model1 with model2
-predictions = as.data.frame(predict(model1, newdata=ames_test, interval = "pred"))
+predictions = as.data.frame(predict(model1, newdata=ames_test, interval = "pred",n.trees =5000))
 predictions$PID = ames_test$PID
 save(predictions, file="predict.Rdata")
 ```
