@@ -150,6 +150,14 @@ This should have the same format as the models in Part I and II.
 
 10 points
 
+```{r, echo=FALSE}
+load("ames_validation.Rdata")
+# replace model1 with model2
+predictions = as.data.frame(predict(model2, newdata=ames_validation, interval = "pred",n.trees =5000))
+predictions$PID = ames_validation$PID
+save(predictions, file="prediction-validation.Rdata")
+```
+
 ### Class Presentations
 
 Each Group should prepare 5 slides in their Github repo:  (save as slides.pdf)
