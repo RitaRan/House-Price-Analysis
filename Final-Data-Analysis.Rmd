@@ -154,7 +154,7 @@ This should have the same format as the models in Part I and II.
 ```{r, echo=FALSE}
 load("ames_validation.Rdata")
 # replace model1 with model2
-predictions = as.data.frame(exp(predict(model2, newdata=ames_validation, interval = "pred",n.trees =5000)))
+predictions = as.data.frame(exp(predict(model2, newdata=ames_validation, interval = "pred",n.trees =5000))) 
 predictions$PID = ames_validation$PID
 predictions$fit = predictions$`exp(predict(model2, newdata = ames_validation, interval = "pred", n.trees = 5000))`
 save(predictions, file="prediction-validation.Rdata")
