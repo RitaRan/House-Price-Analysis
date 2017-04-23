@@ -157,7 +157,7 @@ load("ames_validation.Rdata")
 predictions = as.data.frame(exp(predict(model2, newdata=ames_validation, interval = "pred",n.trees =5000))) 
 predictions$PID = ames_validation$PID
 predictions$fit = predictions$`exp(predict(model2, newdata = ames_validation, interval = "pred", n.trees = 5000))`
-save(predictions, file="prediction-validation.Rdata")
+save(predictions, file="prediction-validation.Rdata" )
 ```
 
 ### Class Presentations
