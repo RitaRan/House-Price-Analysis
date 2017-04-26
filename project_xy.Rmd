@@ -38,18 +38,7 @@ variables with missing values: Lot.Frontage, Alley, Mas.Vnr.Area, Bsmt.Qual, Bsm
 variables needed to impute: Lot.Frontage, Garage.Yr.Blt
 ```{r}
 # recode categorical variables into factors
-ames_train = ames_train %>%
-  mutate(
-    MS.SubClass = factor(MS.SubClass),
-    Bsmt.Full.Bath = factor(Bsmt.Full.Bath),
-    Bsmt.Half.Bath = factor(Bsmt.Half.Bath),
-    Full.Bath = factor(Full.Bath),
-    Half.Bath = factor(Half.Bath),
-    Bedroom.AbvGr = factor(Bedroom.AbvGr),
-    Kitchen.AbvGr = factor(Kitchen.AbvGr),
-    Fireplaces = factor(Fireplaces),
-    Garage.Cars = factor(Garage.Cars)
-      )
+ames_train = ames_train %>% mutate(MS.SubClass = factor(MS.SubClass))
 
 ## missing data 
 # Mas.Vnr.Area = 0 when Mas.Vnr.Type = None
@@ -102,6 +91,10 @@ data = ames_train %>%
          Pool.Area = log(Pool.Area+1),
          Misc.Val = log(Misc.Val+1),
          TotalSq = log(TotalSq))
+
+# delete Lot.Frontage, Garage.Yr.Blt
+data = data %>%
+  dplyr::select(c(-Lot.Frontage, -Garage.Yr.Blt))
 ```
 
 The `Neighborhood` variable, typically of little interest other than to model the location effect, may be of more relevance when used with the [map](http://www.amstat.org/publications/jse/v19n3/decock/AmesResidential.pdf).
@@ -120,19 +113,12 @@ model1 = lm(price ~ ., data=ames_train)
 ### Bayesian Linear Regression 
 ```{r}
 # linear regression
-blinear = bas.lm(price~., data = data[,c(-1, -6, -61)], prior = "g-prior",
+blinear = bas.lm(price~., data = data[,-1], prior = "g-prior",
                       alpha=dim(data)[1], modelprior = uniform(),
                       method = "MCMC", MCMC.iterations = 100000)
+```
 
-# HPM
-#HPM = predict(blinear, estimator = "HPM")
-#HPM$bestmodel
-#blinear$namesx[attr(HPM$fit, 'model')+1]
-# BPM 
-#BPM = predict(blinear, estimator = "BPM")
-#BPM$bestmodel
-#blinear$namesx[attr(HPM$fit, 'model')+1]
-
+```{r}
 # top 20 variables with highes inclusion probability 
 sort(summary(blinear)[,1],decreasing = TRUE)[1:20]
 # recode data
@@ -170,6 +156,39 @@ blinear4 = bas.lm(price~Year.Built+area+Overall.Cond+Lot.Area+Functional+Heating
                   method = "MCMC", MCMC.iterations = 100000)
 ```
 
+```{r}
+blinear = bas.lm(price~., data = train.recoded[,-1], prior = "g-prior",
+                      alpha=dim(data)[1], modelprior = uniform(),
+                      method = "MCMC", MCMC.iterations = 100000)
+# HPM
+HPM = predict(blinear, estimator = "HPM")
+HPM$bestmodel
+blinear$namesx[attr(HPM$fit, 'model')+1]
+ypred.hpm = predict(blinear, estimater = "BMA", 
+                newdata = test.recoded[,-1], predict = TRUE,
+                se.fit = TRUE)  
+rmse(exp(ypred$fit), exp(data.test$price))
+# BPM 
+#BPM = predict(blinear, estimator = "BPM")
+#BPM$bestmodel
+#blinear$namesx[attr(HPM$fit, 'model')+1]
+train.recoded =  data %>%
+  mutate(Condition.2 = ifelse(Condition.2 == "Norm", "Norm", "Others"))
+test.recoded = ames_test %>%
+  mutate(Condition.2 = ifelse(Condition.2 == "Norm", "Norm", "Others"),
+         Kitchen.Qual = ifelse(as.character(Kitchen.Qual) == "Po",
+                               "Fa", as.character(Kitchen.Qual)),
+         Heating.QC = ifelse(as.character(Heating.QC) == "Po", 
+                             "Fa", as.character(Heating.QC)),
+         Electrical = ifelse(as.character(Electrical==""), 
+                             "SBrkr", as.character(Electrical)),
+         Garage.Qual = ifelse(as.character(Garage.Qual=="Ex"), 
+                              "Gd", as.character(Garage.Qual)),
+         Garage.Cond = ifelse(as.character(Garage.Cond=="Ex"), 
+                              "Gd", as.character(Garage.Cond))
+         )
+```
+
 ### Model Evaluation on Test Data
 Create predicted values for price using your model using the testing data
 
@@ -177,18 +196,7 @@ Create predicted values for price using your model using the testing data
 load("ames_test.Rdata")
 
 # recode categorical variables into factors
-ames_test = ames_test %>%
-  mutate(
-    MS.SubClass = factor(MS.SubClass),
-    Bsmt.Full.Bath = factor(Bsmt.Full.Bath),
-    Bsmt.Half.Bath = factor(Bsmt.Half.Bath),
-    Full.Bath = factor(Full.Bath),
-    Half.Bath = factor(Half.Bath),
-    Bedroom.AbvGr = factor(Bedroom.AbvGr),
-    Kitchen.AbvGr = factor(Kitchen.AbvGr),
-    Fireplaces = factor(Fireplaces),
-    Garage.Cars = factor(Garage.Cars)
-  )
+ames_test = ames_test %>% mutate(MS.SubClass = factor(MS.SubClass))
 
 ## missing data 
 # Mas.Vnr.Area = 0 when Mas.Vnr.Type = None
@@ -247,11 +255,16 @@ ames_test = ames_test %>%
 rmse = function(y, yhat){
   sqrt(mean((y-yhat)^2))
 }
-data.test = ames_test %>%
-  filter(Condition.2 != "Artery") %>%
-  filter(Condition.2 != "RRAn") %>%
-  filter(Kitchen.Qual != "Qual") %>%
-  filter(Kitchen.Qual != "Po") 
+
+bias = function(yhat, y){
+  mean(yhat-y)
+}
+maxDeviation = function(yhat, y){
+  max(abs(yhat-y))
+}
+meanDeviation = function(yhat, y){
+  mean(abs(yhat-y))
+}
 
 testdata.recoded = ames_test %>%
   select(price, Year.Remod.Add, Neighborhood, Bsmt.Full.Bath, Condition.1,
@@ -270,11 +283,14 @@ testdata.recoded = ames_test %>%
     MS.SubClass = ifelse(MS.SubClass==90, "90", "others")
     
   )
-ypred2 = predict(blinear2, estimater = "BPM", newdata = data.test)
+ypred2 = predict(blinear2, estimater = "HPM", 
+                 newdata = data.test, predict = TRUE)
 rmse(exp(ypred2$fit), exp(data.test$price))
-ypred3 = predict(blinear3, estimator = "BPM", newdata = testdata.recoded)
+ypred3 = predict(blinear3, estimator = "BPM", 
+                 newdata = testdata.recoded,  predict = TRUE)
 rmse(exp(ypred3$fit), exp(testdata.recoded$price))
-ypred4 = predict(blinear4, estimator = "BPM", newdata = data.test)
+ypred4 = predict(blinear4, estimator = "BPM", 
+                 newdata = data.test,  predict = TRUE)
 rmse(exp(ypred4$fit), exp(data.test$price))
 ```
 
