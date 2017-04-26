@@ -105,7 +105,7 @@ remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","Grn
 #remove_idx4 = c(1:nrow(ames_train))[ames_train$Lot.Area>30000]
 ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
-model1 = lm(price^(0.25) ~ Neighborhood*area + Year.Built + Year.Remod.Add +  Garage.Area  + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond +   Heating.QC, data=ames_train)
+model1 = lm(price^(0.25) ~ Neighborhood*area + Year.Built + Year.Remod.Add +  Garage.Area  + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond +   Heating.QC, data=data)
 load("ames_test.Rdata")
 ames_test = clean_data(ames_test)
 Yhat = predict(model1, newdata=ames_test, interval = "pred")
