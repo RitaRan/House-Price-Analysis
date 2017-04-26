@@ -28,10 +28,10 @@ clean_data = function(xdata){
            Bsmt.Unf.Rate.SF = ifelse(Total.Bsmt.SF!=0, Bsmt.Unf.SF/Total.Bsmt.SF, 0),
            Bsmt.Full.Bath = ifelse(is.na(Bsmt.Full.Bath),0,Bsmt.Full.Bath),
            Bsmt.Half.Bath = ifelse(is.na(Bsmt.Half.Bath),0,Bsmt.Half.Bath),
-           Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
-                                        Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
-           Bath = as.factor(ifelse(Half.Bath!=0,
-                                        Full.Bath+0.5,Full.Bath)),
+           #Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
+           #                             Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
+           #Bath = as.factor(ifelse(Half.Bath!=0,
+           #                             Full.Bath+0.5,Full.Bath)),
            Fireplace.Qu = as.factor(ifelse(is.na(as.character(Fireplace.Qu)), 
                                            "No Fireplace", as.character(Fireplace.Qu))),
            Garage.Type = as.factor(ifelse(is.na(as.character(Garage.Type)),
@@ -53,7 +53,10 @@ clean_data = function(xdata){
                                            "None", as.character(Mas.Vnr.Type))),
            Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
            Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
-                                  Garage.Yr.Blt))%>%
+                                  Garage.Yr.Blt),
+           Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", "Fa", as.character(Kitchen.Qual))),
+           Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", "Fa", as.character(Heating.QC)))
+           )%>%
     select(-Lot.Frontage)%>%
     select(-Pool.QC)%>%
     select(-Pool.Area)
@@ -62,7 +65,7 @@ load("ames_train.Rdata")
 ames_train = clean_data(ames_train)
 is.factor(ames_train$MS.Zoning)
 apply(ames_train[,5:27],2,table)
-table(ames_train$Sale.Type)
+table(ames_train$BsmtFin.SF.2)
 colnames(ames_train)
 ```
 
@@ -76,12 +79,13 @@ In the first model you are allowed only limited manipulations of the original da
 
 ```{r model1}
 
-model1 = lm(log(price) ~ area + MS.SubClass + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.AbvGr + Enclosed.Porch, data=ames_train[,-1])
+model1 = lm(log(price) ~ area + MS.SubClass + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.AbvGr + Enclosed.Porch + Bldg.Type + Condition.1 + Fireplace.Qu , data=ames_train[,-1])
 
 model1 = lm(log(price) ~ 1, data = ames_train[,-1])
 biggest = formula(lm(log(price) ~ ., data = ames_train[,-1]))
 bestforward = step(model1, k=2, direction = "forward", scope = biggest, trace = FALSE)
-model1 = update(bestforward, .~.-Kitchen.Qual-Bath-Garage.Cond-Garage.Qual-Heating.QC-Condition.2-Electrical)
+model1 = update(bestforward, .~.-Bath-Garage.Cond-Garage.Qual-Condition.2-Electrical)
+model1 = bestforward
 summary(bestforward)
 summary(model1)
 best = step(model1, k=2, trace = FALSE)
@@ -107,10 +111,11 @@ a = ames_test[apply(is.na(ames_test),1,sum),]
 Yhat = predict(model1, newdata=ames_test, interval = "pred")
 Yhat = exp(Yhat)
 rmse(Yhat[,1],ames_test$price)
+
 rmse = function(pred,y){
   sqrt(mean((pred-y)^2))
 }
-
+table(ames_train$Bath)
 ```
 
 You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 
