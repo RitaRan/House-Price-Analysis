@@ -11,7 +11,7 @@ To get started read in the training data:
 ```{r read-data}
 library(dplyr)
 clean_data = function(xdata){
-  xdata %>%
+xdata %>%
     mutate(Alley = as.factor(ifelse(is.na(as.character(Alley)), 
                                     "No alley access", as.character(Alley))),
            Bsmt.Qual = as.factor(ifelse(is.na(as.character(Bsmt.Qual)), 
@@ -41,7 +41,9 @@ clean_data = function(xdata){
                                            "No Garage", as.character(Garage.Finish))),
            Garage.Qual = as.factor(ifelse(is.na(as.character(Garage.Qual)),
                                            "No Garage", as.character(Garage.Qual))),
-           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond)),
+           Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
+                                          "Gd", as.character(Garage.Cond))),
+           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|as.character(Garage.Cond)=="Po",
                                            "No Garage", as.character(Garage.Cond))),
            Pool.Area = as.factor(ifelse(Pool.Area==0,
                                            "N", "Y")),
@@ -58,25 +60,27 @@ clean_data = function(xdata){
                                            "Fa", as.character(Kitchen.Qual))),
            Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", 
                                          "Fa", as.character(Heating.QC))),
-           Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
-                                          "Gd", as.character(Garage.Cond))),
+           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
            Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
                                           "Gd", as.character(Garage.Qual))),
            Electrical = as.factor(ifelse(as.character(Electrical) == "", 
                                          "SBrkr", as.character(Electrical))),
-           Condition.2 = as.factor(ifelse(as.character(Condition.2) == "Artery",
-                                          "Feedr", as.character(Condition.2)))
-           )%>%
-    select(-Lot.Frontage)%>%
-    select(-Pool.QC)%>%
-    select(-Pool.Area)
+           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
+                                          "Feedr", as.character(Condition.2))),
+           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
+                                           "Fa", as.character(Bsmt.Qual))),
+           #Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Veenerk",
+           #                                "StoneBr", as.character(Neighborhood))),
+           Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
+                                          "NPkVill", as.character(Neighborhood)))
+          )%>%
+    dplyr::select(-c(Lot.Frontage,Pool.QC,Pool.Area))
 }
-load("ames_train.Rdata")
-ames_train = clean_data(ames_train)
-is.factor(ames_train$MS.Zoning)
-apply(ames_train[,5:27],2,table)
-table(ames_train$Electrical)
-table(ames_test$Electrical)
+
+
+
+table(ames_train$Neighborhood)
+table(ames_test$Bsmt.Qual)
 a = ames_test[ames_test$Electrical==""|ames_test$Heating == "GasA",]
 b = ames_train[ames_train$Electrical=="",]
 ```
@@ -90,22 +94,66 @@ We are restricting attention to just the "normal sales" condition.
 In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 
 ```{r model1}
+library(MASS)
+load("ames_train.Rdata")
+ames_train = clean_data(ames_train)
+ames_train = ames_train[ames_train$price<580000,-1]
+remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
+remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
+remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
+#remove_idx4 = c(1:nrow(ames_train))[ames_train$Year.Built<1900&ames_train$price>250000]
+#remove_idx4 = c(1:nrow(ames_train))[ames_train$Lot.Area>30000]
+ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
-model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual , data=ames_train[,-1])
+model1 = lm(price^(0.25) ~ Neighborhood*area + Year.Built + Year.Remod.Add +  Garage.Area  + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond +   Heating.QC, data=ames_train)
+load("ames_test.Rdata")
+ames_test = clean_data(ames_test)
+Yhat = predict(model1, newdata=ames_test, interval = "pred")
+Yhat = Yhat^4
+rmse(Yhat[,1],ames_test$price)
+
+model1 = lm(price^(0.25) ~ area  + Year.Built^2 + Year.Remod.Add + Garage.Area  + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Garage.Area + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
+
+summary(model1)
+plot(model1)
+
+plot(ames_train$area,ames_train$price)
+
+
+#Call:
+lm(formula = price^(0.25) ~ area + Year.Built + Year.Remod.Add + 
+    Garage.Area + Overall.Qual + Lot.Area + BsmtFin.SF.1 + Overall.Cond + 
+    Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + 
+    Kitchen.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + 
+    Neighborhood + Condition.1 + Functional + Fireplace.Qu + 
+    Bsmt.Exposure + Exterior.1st + MS.Zoning + Roof.Matl + Garage.Cars + 
+    Open.Porch.SF + Wood.Deck.SF + Exter.Cond + Low.Qual.Fin.SF + 
+    BsmtFin.SF.2 + BsmtFin.Type.1 + Land.Slope + Kitchen.AbvGr + 
+    Utilities + Foundation + Heating + Bedroom.AbvGr + Heating.QC + 
+    Condition.2 + Mas.Vnr.Area + Bsmt.Cond + BsmtFin.Type.2 + 
+    Yr.Sold + Paved.Drive + Mo.Sold + Fireplaces, data = ames_train)
+# [1] 16107.75, 15714.92, 15715.11, 15695.81 15690.05
+> model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Bldg.Type + Bsmt.Qual + Garage.Area + Enclosed.Porch + Garage.Cond + Neighborhood, data=ames_train[,-1])
+
+model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Bldg.Type + Bsmt.Qual + Garage.Area + Enclosed.Porch + Garage.Cond + Neighborhood, data=ames_train[,-1])
 
 #model1 = lm(log(price) ~ 1, data = ames_train[,-1])
 biggest = formula(lm(log(price) ~ ., data = ames_train[,-1]))
 bestforward = step(model1, k=2, direction = "forward", scope = biggest, trace = FALSE)
-model1 = update(bestforward, .~.-Bath-Garage.Cond-Garage.Qual-Condition.2-Electrical)
 model1 = bestforward
 summary(bestforward)
-summary(model1)
+#model1 = update(bestforward, .~.-Bath-Garage.Cond-Garage.Qual-Condition.2-Electrical)
+bestbackward = step(model1, k=2, direction = "backward", trace = FALSE)
+model1 = bestbackward
+sum_back = summary(bestbackward)
+sum_back$coefficients
+
 best = step(model1, k=2, trace = FALSE)
 library(faraway)
 library(leaps)
 x = model.matrix(log(price)~., data)
-table(ames_train$Garage.Qual)
-table(ames_test$Garage.Qual)
+table(ames_train$Condition.2)
+table(ames_test$Condition.2)
 ```
 
 
