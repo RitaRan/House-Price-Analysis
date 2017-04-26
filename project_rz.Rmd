@@ -54,8 +54,18 @@ clean_data = function(xdata){
            Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
            Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
                                   Garage.Yr.Blt),
-           Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", "Fa", as.character(Kitchen.Qual))),
-           Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", "Fa", as.character(Heating.QC)))
+           Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", 
+                                           "Fa", as.character(Kitchen.Qual))),
+           Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", 
+                                         "Fa", as.character(Heating.QC))),
+           Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
+                                          "Gd", as.character(Garage.Cond))),
+           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
+                                          "Gd", as.character(Garage.Qual))),
+           Electrical = as.factor(ifelse(as.character(Electrical) == "", 
+                                         "SBrkr", as.character(Electrical))),
+           Condition.2 = as.factor(ifelse(as.character(Condition.2) == "Artery",
+                                          "Feedr", as.character(Condition.2)))
            )%>%
     select(-Lot.Frontage)%>%
     select(-Pool.QC)%>%
@@ -65,8 +75,10 @@ load("ames_train.Rdata")
 ames_train = clean_data(ames_train)
 is.factor(ames_train$MS.Zoning)
 apply(ames_train[,5:27],2,table)
-table(ames_train$BsmtFin.SF.2)
-colnames(ames_train)
+table(ames_train$Electrical)
+table(ames_test$Electrical)
+a = ames_test[ames_test$Electrical==""|ames_test$Heating == "GasA",]
+b = ames_train[ames_train$Electrical=="",]
 ```
 
 The `Neighborhood` variable, typically of little interest other than to model the location effect, may be of more relevance when used with the [map](http://www.amstat.org/publications/jse/v19n3/decock/AmesResidential.pdf).
@@ -79,9 +91,9 @@ In the first model you are allowed only limited manipulations of the original da
 
 ```{r model1}
 
-model1 = lm(log(price) ~ area + MS.SubClass + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.AbvGr + Enclosed.Porch + Bldg.Type + Condition.1 + Fireplace.Qu , data=ames_train[,-1])
+model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual , data=ames_train[,-1])
 
-model1 = lm(log(price) ~ 1, data = ames_train[,-1])
+#model1 = lm(log(price) ~ 1, data = ames_train[,-1])
 biggest = formula(lm(log(price) ~ ., data = ames_train[,-1]))
 bestforward = step(model1, k=2, direction = "forward", scope = biggest, trace = FALSE)
 model1 = update(bestforward, .~.-Bath-Garage.Cond-Garage.Qual-Condition.2-Electrical)
@@ -92,8 +104,8 @@ best = step(model1, k=2, trace = FALSE)
 library(faraway)
 library(leaps)
 x = model.matrix(log(price)~., data)
-table(ames_train$Heating.QC)
-table(ames_test$Heating.QC)
+table(ames_train$Garage.Qual)
+table(ames_test$Garage.Qual)
 ```
 
 
