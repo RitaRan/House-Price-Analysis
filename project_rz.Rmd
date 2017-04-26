@@ -1,0 +1,238 @@
+---
+title: "project"
+author: "Ran Zhou"
+date: "4/25/2017"
+output: html_document
+---
+
+### Read in Training Data
+
+To get started read in the training data:
+```{r read-data}
+library(dplyr)
+clean_data = function(xdata){
+  xdata %>%
+    mutate(Alley = as.factor(ifelse(is.na(as.character(Alley)), 
+                                    "No alley access", as.character(Alley))),
+           Bsmt.Qual = as.factor(ifelse(is.na(as.character(Bsmt.Qual)), 
+                                           "No Basement", as.character(Bsmt.Qual))),
+           Bsmt.Cond = as.factor(ifelse(is.na(as.character(Bsmt.Cond)), 
+                                           "No Basement", as.character(Bsmt.Cond))),
+           BsmtFin.Type.1 = as.factor(ifelse(is.na(as.character(BsmtFin.Type.1)), 
+                                           "No Basement", as.character(BsmtFin.Type.1))),
+           BsmtFin.Type.2 = as.factor(ifelse(is.na(as.character(BsmtFin.Type.2)), 
+                                           "No Basement", as.character(BsmtFin.Type.2))),
+           Bsmt.Exposure = as.factor(ifelse(is.na(as.character(Bsmt.Exposure))|
+                                              as.character(Bsmt.Exposure) == "", 
+                                           "No Basement", as.character(Bsmt.Exposure))),
+           Bsmt.Unf.Rate.SF = ifelse(Total.Bsmt.SF!=0, Bsmt.Unf.SF/Total.Bsmt.SF, 0),
+           Bsmt.Full.Bath = ifelse(is.na(Bsmt.Full.Bath),0,Bsmt.Full.Bath),
+           Bsmt.Half.Bath = ifelse(is.na(Bsmt.Half.Bath),0,Bsmt.Half.Bath),
+           Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
+                                        Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
+           Bath = as.factor(ifelse(Half.Bath!=0,
+                                        Full.Bath+0.5,Full.Bath)),
+           Fireplace.Qu = as.factor(ifelse(is.na(as.character(Fireplace.Qu)), 
+                                           "No Fireplace", as.character(Fireplace.Qu))),
+           Garage.Type = as.factor(ifelse(is.na(as.character(Garage.Type)),
+                                           "No Garage", as.character(Garage.Type))),
+           Garage.Finish = as.factor(ifelse(is.na(as.character(Garage.Finish))|
+                                              as.character(Garage.Finish) == "",
+                                           "No Garage", as.character(Garage.Finish))),
+           Garage.Qual = as.factor(ifelse(is.na(as.character(Garage.Qual)),
+                                           "No Garage", as.character(Garage.Qual))),
+           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond)),
+                                           "No Garage", as.character(Garage.Cond))),
+           Pool.Area = as.factor(ifelse(Pool.Area==0,
+                                           "N", "Y")),
+           Fence = as.factor(ifelse(is.na(as.character(Fence)),
+                                           "No Fence", as.character(Fence))),
+           Misc.Feature = as.factor(ifelse(is.na(as.character(Misc.Feature)),
+                                           "None", as.character(Misc.Feature))),
+           Mas.Vnr.Type = as.factor(ifelse(as.character(Mas.Vnr.Type) == "",
+                                           "None", as.character(Mas.Vnr.Type))),
+           Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
+           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
+                                  Garage.Yr.Blt))%>%
+    select(-Lot.Frontage)%>%
+    select(-Pool.QC)%>%
+    select(-Pool.Area)
+}
+load("ames_train.Rdata")
+ames_train = clean_data(ames_train)
+is.factor(ames_train$MS.Zoning)
+apply(ames_train[,5:27],2,table)
+table(ames_train$Sale.Type)
+colnames(ames_train)
+```
+
+The `Neighborhood` variable, typically of little interest other than to model the location effect, may be of more relevance when used with the [map](http://www.amstat.org/publications/jse/v19n3/decock/AmesResidential.pdf).
+
+We are restricting attention to just the "normal sales" condition.
+
+## Part I: Simple Model
+
+In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
+
+```{r model1}
+
+model1 = lm(log(price) ~ area + MS.SubClass + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.AbvGr + Enclosed.Porch, data=ames_train[,-1])
+
+model1 = lm(log(price) ~ 1, data = ames_train[,-1])
+biggest = formula(lm(log(price) ~ ., data = ames_train[,-1]))
+bestforward = step(model1, k=2, direction = "forward", scope = biggest, trace = FALSE)
+model1 = update(bestforward, .~.-Kitchen.Qual-Bath-Garage.Cond-Garage.Qual-Heating.QC-Condition.2-Electrical)
+summary(bestforward)
+summary(model1)
+best = step(model1, k=2, trace = FALSE)
+library(faraway)
+library(leaps)
+x = model.matrix(log(price)~., data)
+table(ames_train$Heating.QC)
+table(ames_test$Heating.QC)
+```
+
+
+
+### Model Evaluation on Test Data
+Create predicted values for price using your model using the testing data
+
+```{r read-test-data}
+load("ames_test.Rdata")
+ames_test = clean_data(ames_test)
+a = ames_test[apply(is.na(ames_test),1,sum),]
+```
+
+```{r predict-model1, echo=FALSE}
+Yhat = predict(model1, newdata=ames_test, interval = "pred")
+Yhat = exp(Yhat)
+rmse(Yhat[,1],ames_test$price)
+rmse = function(pred,y){
+  sqrt(mean((pred-y)^2))
+}
+
+```
+
+You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 
+
+```{r create }
+# name dataframe as predictions! DO NOT CHANGE
+predictions = as.data.frame(Yhat)
+predictions$PID = ames_test$PID
+save(predictions, file="predict.Rdata")
+```
+
+Your models will be evaluated on the following criteria on the test data: 
+
+* Bias:  Average (Yhat-Y)  positive values indicate the model tends to overestimate price (on average) while negative values indicate the model tends to underestimate price.
+
+* Maximum Deviation:  Max |Y-Yhat| -  identifies the worst prediction  made in the validation data set.
+
+* Mean Absolute Deviation:  Average |Y-Yhat| - the average error (regardless of sign).
+
+* Root Mean Square Error: Sqrt Average (Y-Yhat)^2
+
+* Coverage:  Average( lwr < Y < upr) 
+
+In order to have a passing wercker badge, your file for predictions needs to be the same length as the test data, with three columns:  fitted values, lower CI and upper CI values in that order with names, fit, lwr, and upr respectively.  
+
+You will be able to see your scores on the score board (coming soon!).  They will be initialized by a predction based on the mean in the training data.
+
+_Model Check_ - Test your prediction on the first observation in the training and test data set to make sure that the model gives a reasonable answer and include this in a supplement of your report. This should be done BY HAND using a calculator (this means use the raw data from the original dataset and manually calculate all transformations and interactions with your calculator)! Models that do not give reasonable answers will be given a minimum 2 letter grade reduction. Also be careful as you cannot use certain transformations [log or inverse x] if a variable has values of 0.
+
+### Part II: Complex Model
+
+In this part you may go all out for constructing a best fitting model for predicting housing prices using methods that we have covered this semester.  You should feel free to to create any new variables (such as quadratic, interaction, or indicator variables, splines, etc). The variable `TotalSq = X1st.Flr.SF+X2nd.Flr.SF` was added to the dataframe (that does not include basement area, so you may improve on this. A relative grade is assigned by comparing your fit on the test set to that of your fellow students with bonus points awarded to those who substantially exceed their fellow students and point reductions occurring for models which fit exceedingly poorly.  
+
+Update your predictions using your complex model to provide point estimates and CI.
+
+```{r predict-model2, echo=FALSE}
+suppressMessages(library(gbm))
+model2 =gbm(log(price)~.,data =ames_train,n.trees =5000, interaction.depth =16)
+# replace model1 with model2
+predictions = as.data.frame(exp(predict(model2, newdata=ames_test, interval = "pred",n.trees =5000)))
+predictions$PID = ames_test$PID
+predictions$fit = predictions$`exp(predict(model2, newdata = ames_test, interval = "pred", n.trees = 5000))`
+save(predictions, file="predict.Rdata")
+```
+
+You may iterate here as much as you like exploring different models until you are satisfied with your results.
+
+### Part III: Write Up
+
+Once you are satisfied with your model, provide a write up of your data analysis project in a new Rmd file/pdf file: `writeup.Rmd` by copying over salient parts of your R notebook. The written assignment consists of five parts:
+
+1. Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+2. Development and assessment of an initial model from Part I (10 points)
+
+* Initial model: must include a summary table and an explanation/discussion for variable selection.  Interpretation of coefficients desirable for full points.
+
+* Model selection: must include a discussion
+
+* Residual: must include a residual plot and a discussion
+
+* RMSE: must include an RMSE and an explanation  (other criteria desirable)
+
+* Model testing: must include an explanation
+
+3. Development of the final model (20 points)
+
+* Final model: must include a summary table
+
+* Variables: must include an explanation
+
+* Variable selection/shrinkage: must use appropriate method and include an explanation
+
+
+
+4. Assessment of the final model (25 points)
+
+* Residual: must include a residual plot and a discussion
+
+* RMSE: must include an RMSE and an explanation  (other criteria desirable)
+
+* Model evaluation: must include an evaluation discussion
+
+* Model testing : must include a discussion
+
+* Model result: must include a selection of the top 10 undervalued and overvalued  houses
+
+5. Conclusion (10 points): must include a summary of results and a discussion of things learned
+
+
+
+### Part IV
+Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
+This should have the same format as the models in Part I and II.
+
+10 points
+
+```{r, echo=FALSE}
+load("ames_validation.Rdata")
+ames_validation = clean_data(ames_validation)
+# replace model1 with model2
+predictions = as.data.frame(exp(predict(model2, newdata=ames_validation, interval = "pred",n.trees =5000))) 
+predictions$PID = ames_validation$PID
+predictions$fit = predictions$`exp(predict(model2, newdata = ames_validation, interval = "pred", n.trees = 5000))`
+save(predictions, file="prediction-validation.Rdata" )
+```
+
+### Class Presentations
+
+Each Group should prepare 5 slides in their Github repo:  (save as slides.pdf)
+
+* Most interesting graphic  (a picture is worth a thousand words prize!)  
+
+* Best Model (motivation, how you found it, why you think it is best)
+
+* Best Insights into predicting Sales Price.
+
+* 2 Best Houses to purchase  (and why)
+
+* Best Team Name/Graphic
+
+We will select winners based on the above criteria and overall performance.
+
+
+Finally your repo should have: `writeup.Rmd`, `writeup.pdf`, `slides.Rmd` (and whatever output you use for the presentation) and `predict.Rdata` and `predict-validation.Rdata`.
