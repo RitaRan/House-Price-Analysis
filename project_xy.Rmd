@@ -1,0 +1,390 @@
+---
+title: "Project"
+author: "BayeStar"
+date: "4/25/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(BAS)
+```
+
+For this project you will take the role of a consultant hired by a real estate investment firm in Ames, Iowa, a mid-west town in the United States, to analyze data in order to help provide insight into how the firm should invest for highest profits, and to quantify and communicate to the company management what types of real estate properties are good investments and why. They have provided you with data on housing sales from between 2006 to 2010 that contains information about the characteristics of the house (number of bedrooms, number of bathrooms, square footage, etc.) and the house's sale price. The codebook for this data set is [available online here ](https://ww2.amstat.org/publications/jse/v19n3/decock/datadocumentation.txt)  or in the Data folder in your repo.
+
+## About the Data Analysis Project
+
+It's generally a bad idea to buy the most expensive house in the neighborhood. And remember the real estate agents' mantra: Location, location, location! Keep in mind that the goal is to make money for your investors, and hence investing in a property that is overvalued (costing more than it is worth) is rarely a good idea. This means that it's critical to know which properties are overvalued and which are undervalued.  The company that hired you has many questions for you about the housing market. It is up to you to decide what methods you want to use (frequentist or Bayesian) to answer these questions, and implement them to help to identify undervalued and overvalued properties.
+
+
+You will have three data sets: a subset for training, a subset for testing, and a third subset for validation. You will be asked to do data exploration and build your model (or models) initially using only the training data. Then, you will test your model on the testing data, and finally validate using the validation data. We are challenging you to keep your analysis experience realistic, and in a realistic scenario you would not have access to all three of these data sets at once.  You will be able to see on our scoreboard how well your team is doing based on its predictive performance on the testing data.  After your project is turned in you will see the final score on the validation set.
+
+All members of the team should contribute equally and answer any questions about the analysis at the final presentation.
+
+For your analysis create a new notebook named "project.Rmd" and update accordingly rather than editing this.
+
+
+### Read in Training Data
+
+To get started read in the training data:
+```{r read-data}
+load("ames_train.Rdata")
+```
+### EDA
+variables with missing values: Lot.Frontage, Alley, Mas.Vnr.Area, Bsmt.Qual, BsmtFin.Type.2, BsmtFin.Type.1, Bsmt.Cond, Bsmt.Exposure,  Bsmt.Full.Bath, Bsmt.Half.Bath, Garage.Type, Garage.Yr.Blt, Garage.Finish, Garage.Qual, Garage.Cond, Fireplace.Qu, Pool.QC, Fence, and Misc.Feature. 
+variables needed to impute: Lot.Frontage, Garage.Yr.Blt
+```{r}
+# recode categorical variables into factors
+ames_train = ames_train %>%
+  mutate(
+    MS.SubClass = factor(MS.SubClass),
+    Bsmt.Full.Bath = factor(Bsmt.Full.Bath),
+    Bsmt.Half.Bath = factor(Bsmt.Half.Bath),
+    Full.Bath = factor(Full.Bath),
+    Half.Bath = factor(Half.Bath),
+    Bedroom.AbvGr = factor(Bedroom.AbvGr),
+    Kitchen.AbvGr = factor(Kitchen.AbvGr),
+    Fireplaces = factor(Fireplaces),
+    Garage.Cars = factor(Garage.Cars)
+      )
+
+## missing data 
+# Mas.Vnr.Area = 0 when Mas.Vnr.Type = None
+ames_train$Mas.Vnr.Area[is.na(ames_train$Mas.Vnr.Area)] = 0
+# Bsmt related factors = NA for no basement
+ames_train$Bsmt.Qual <- addNA(ames_train$Bsmt.Qual)
+ames_train$BsmtFin.Type.1 <- addNA(ames_train$BsmtFin.Type.1)
+ames_train$BsmtFin.Type.2 <- addNA(ames_train$BsmtFin.Type.2)
+ames_train$Bsmt.Cond <- addNA(ames_train$Bsmt.Cond)
+ames_train$Bsmt.Exposure <- addNA(ames_train$Bsmt.Exposure)
+# Bsmt.Full.Bath or Bsmt.Half.Bath = 0 for no basement
+ames_train$Bsmt.Full.Bath[is.na(ames_train$Bsmt.Full.Bath)] = 0
+ames_train$Bsmt.Half.Bath[is.na(ames_train$Bsmt.Half.Bath)] = 0
+# Garage related factors = NA for no garage
+ames_train$Garage.Type = addNA(ames_train$Garage.Type)
+ames_train$Garage.Finish = addNA(ames_train$Garage.Finish)
+ames_train$Garage.Qual = addNA(ames_train$Garage.Qual)
+ames_train$Garage.Cond = addNA(ames_train$Garage.Cond)
+# Alley = NA for no alley
+ames_train$Alley = addNA(ames_train$Alley)
+# Fence = NA for no fence
+ames_train$Fence = addNA(ames_train$Fence)
+# Pool.QC = NA for no pool
+ames_train$Pool.QC = addNA(ames_train$Pool.QC)
+# Fireplace.Qu = NA for no fireplace
+ames_train$Fireplace.Qu = addNA(ames_train$Fireplace.Qu)
+# Misc.Feature = NA for no Misc
+ames_train$Misc.Feature = addNA(ames_train$Misc.Feature)
+
+# log trans of skewed variables 
+data = ames_train %>%
+  mutate(price = log(price),
+         area = log(area),
+         Lot.Frontage = log(Lot.Frontage),
+         Lot.Area = log(Lot.Area),
+         Mas.Vnr.Area = log(Mas.Vnr.Area+1),
+         BsmtFin.SF.1 = log(BsmtFin.SF.1+1),
+         BsmtFin.SF.2 = log(BsmtFin.SF.2+1),
+         Bsmt.Unf.SF = log(Bsmt.Unf.SF+1),
+         Total.Bsmt.SF = log(Total.Bsmt.SF+1),
+         X1st.Flr.SF = log(X1st.Flr.SF),
+         X2nd.Flr.SF = log(X2nd.Flr.SF+1),
+         Low.Qual.Fin.SF = log(Low.Qual.Fin.SF+1),
+         Garage.Area = log(Garage.Area+1),
+         Wood.Deck.SF = log(Wood.Deck.SF+1),
+         Open.Porch.SF = log(Open.Porch.SF+1),
+         Enclosed.Porch = log(Enclosed.Porch+1),
+         X3Ssn.Porch = log(X3Ssn.Porch+1),
+         Screen.Porch = log(Screen.Porch+1),
+         Pool.Area = log(Pool.Area+1),
+         Misc.Val = log(Misc.Val+1),
+         TotalSq = log(TotalSq))
+```
+
+The `Neighborhood` variable, typically of little interest other than to model the location effect, may be of more relevance when used with the [map](http://www.amstat.org/publications/jse/v19n3/decock/AmesResidential.pdf).
+
+We are restricting attention to just the "normal sales" condition.
+
+## Part I: Simple Model
+
+In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
+
+### linear model
+```{r model1}
+model1 = lm(price ~ ., data=ames_train)
+```
+
+### Bayesian Linear Regression 
+```{r}
+# linear regression
+blinear = bas.lm(price~., data = data[,c(-1, -6, -61)], prior = "g-prior",
+                      alpha=dim(data)[1], modelprior = uniform(),
+                      method = "MCMC", MCMC.iterations = 100000)
+
+# HPM
+#HPM = predict(blinear, estimator = "HPM")
+#HPM$bestmodel
+#blinear$namesx[attr(HPM$fit, 'model')+1]
+# BPM 
+#BPM = predict(blinear, estimator = "BPM")
+#BPM$bestmodel
+#blinear$namesx[attr(HPM$fit, 'model')+1]
+
+# top 20 variables with highes inclusion probability 
+sort(summary(blinear)[,1],decreasing = TRUE)[1:20]
+# recode data
+data.recoded = data %>%
+  select(price, Year.Remod.Add, Neighborhood, Bsmt.Full.Bath, Condition.1,
+         Total.Bsmt.SF, Overall.Qual, Fireplace.Qu, Garage.Area, 
+         Functional, Garage.Type, Bsmt.Full.Bath, Bsmt.Exposure, 
+         Screen.Porch, Lot.Area, Year.Built, MS.SubClass) %>%
+  mutate(
+    Neighborhood = ifelse(Neighborhood!="Crawfor"&Neighborhood!="NoRidge"&
+                            Neighborhood!="BrkSide", "others", Neighborhood),
+    Condition.1 = ifelse(Condition.1!="PosN" & Condition.1!="Norm",
+                         "others", Condition.1),
+    Fireplace.Qu = ifelse(is.na(as.character(Fireplace.Qu)), 0, 1),
+    Functional = ifelse(Functional=="Maj2", "Maj2", "others"),
+    Garage.Type = ifelse(is.na(as.character(Garage.Type)), 0, 1),
+    Bsmt.Exposure = ifelse(Bsmt.Exposure=="Gd", "Gd", "others"),
+    MS.SubClass = ifelse(MS.SubClass==90, "90", "others")
+    
+  )
+# with top 20 variables
+blinear2 = bas.lm(price~Year.Built+area+Overall.Cond+Lot.Area+Functional+Heating+
+                    Bsmt.Exposure+MS.Zoning+Condition.2+Neighborhood+Condition.1+
+                    Screen.Porch+Kitchen.Qual+BsmtFin.SF.1+MS.SubClass+Foundation+
+                    Exter.Cond, data=data[,-1], prior = "g-prior",
+                  alpha = dim(data)[1], modelprior = uniform(),
+                  method = "MCMC", MCMC.iterations = 100000)
+blinear3 = bas.lm(price~., data = data.recoded, prior = "g-prior",
+                  alpha = dim(data.recoded)[1], modelprior = uniform(),
+                  method = "MCMC", MCMC.iterations = 100000)
+# with top 10 variables 
+blinear4 = bas.lm(price~Year.Built+area+Overall.Cond+Lot.Area+Functional+Heating+
+                    Bsmt.Exposure+MS.Zoning+Condition.2+Neighborhood, data=data[,-1], 
+                  prior = "g-prior",alpha = dim(data)[1], modelprior = uniform(),
+                  method = "MCMC", MCMC.iterations = 100000)
+```
+
+### Model Evaluation on Test Data
+Create predicted values for price using your model using the testing data
+
+```{r read-test-data}
+load("ames_test.Rdata")
+
+# recode categorical variables into factors
+ames_test = ames_test %>%
+  mutate(
+    MS.SubClass = factor(MS.SubClass),
+    Bsmt.Full.Bath = factor(Bsmt.Full.Bath),
+    Bsmt.Half.Bath = factor(Bsmt.Half.Bath),
+    Full.Bath = factor(Full.Bath),
+    Half.Bath = factor(Half.Bath),
+    Bedroom.AbvGr = factor(Bedroom.AbvGr),
+    Kitchen.AbvGr = factor(Kitchen.AbvGr),
+    Fireplaces = factor(Fireplaces),
+    Garage.Cars = factor(Garage.Cars)
+  )
+
+## missing data 
+# Mas.Vnr.Area = 0 when Mas.Vnr.Type = None
+ames_test$Mas.Vnr.Area[is.na(ames_test$Mas.Vnr.Area)] = 0
+# Bsmt related factors = NA for no basement
+ames_test$Bsmt.Qual <- addNA(ames_test$Bsmt.Qual)
+ames_test$BsmtFin.Type.1 <- addNA(ames_test$BsmtFin.Type.1)
+ames_test$BsmtFin.Type.2 <- addNA(ames_test$BsmtFin.Type.2)
+ames_test$Bsmt.Cond <- addNA(ames_test$Bsmt.Cond)
+ames_test$Bsmt.Exposure <- addNA(ames_test$Bsmt.Exposure)
+# Bsmt.Full.Bath or Bsmt.Half.Bath = 0 for no basement
+ames_test$Bsmt.Full.Bath[is.na(ames_test$Bsmt.Full.Bath)] = 0
+ames_test$Bsmt.Half.Bath[is.na(ames_test$Bsmt.Half.Bath)] = 0
+# Garage related factors = NA for no garage
+ames_test$Garage.Type = addNA(ames_test$Garage.Type)
+ames_test$Garage.Finish = addNA(ames_test$Garage.Finish)
+ames_test$Garage.Qual = addNA(ames_test$Garage.Qual)
+ames_test$Garage.Cond = addNA(ames_test$Garage.Cond)
+# Alley = NA for no alley
+ames_test$Alley = addNA(ames_test$Alley)
+# Fence = NA for no fence
+ames_test$Fence = addNA(ames_test$Fence)
+# Pool.QC = NA for no pool
+ames_test$Pool.QC = addNA(ames_test$Pool.QC)
+# Fireplace.Qu = NA for no fireplace
+ames_test$Fireplace.Qu = addNA(ames_test$Fireplace.Qu)
+# Misc.Feature = NA for no Misc
+ames_test$Misc.Feature = addNA(ames_test$Misc.Feature)
+
+# log trans of skewed variables 
+ames_test = ames_test %>%
+  mutate(price = log(price),
+         area = log(area),
+         Lot.Frontage = log(Lot.Frontage),
+         Lot.Area = log(Lot.Area),
+         Mas.Vnr.Area = log(Mas.Vnr.Area+1),
+         BsmtFin.SF.1 = log(BsmtFin.SF.1+1),
+         BsmtFin.SF.2 = log(BsmtFin.SF.2+1),
+         Bsmt.Unf.SF = log(Bsmt.Unf.SF+1),
+         Total.Bsmt.SF = log(Total.Bsmt.SF+1),
+         X1st.Flr.SF = log(X1st.Flr.SF),
+         X2nd.Flr.SF = log(X2nd.Flr.SF+1),
+         Low.Qual.Fin.SF = log(Low.Qual.Fin.SF+1),
+         Garage.Area = log(Garage.Area+1),
+         Wood.Deck.SF = log(Wood.Deck.SF+1),
+         Open.Porch.SF = log(Open.Porch.SF+1),
+         Enclosed.Porch = log(Enclosed.Porch+1),
+         X3Ssn.Porch = log(X3Ssn.Porch+1),
+         Screen.Porch = log(Screen.Porch+1),
+         Pool.Area = log(Pool.Area+1),
+         Misc.Val = log(Misc.Val+1),
+         TotalSq = log(TotalSq))
+```
+
+```{r}
+rmse = function(y, yhat){
+  sqrt(mean((y-yhat)^2))
+}
+data.test = ames_test %>%
+  filter(Condition.2 != "Artery") %>%
+  filter(Condition.2 != "RRAn") %>%
+  filter(Kitchen.Qual != "Qual") %>%
+  filter(Kitchen.Qual != "Po") 
+
+testdata.recoded = ames_test %>%
+  select(price, Year.Remod.Add, Neighborhood, Bsmt.Full.Bath, Condition.1,
+         Total.Bsmt.SF, Overall.Qual, Fireplace.Qu, Garage.Area, 
+         Functional, Garage.Type, Bsmt.Full.Bath, Bsmt.Exposure, 
+         Screen.Porch, Lot.Area, Year.Built, MS.SubClass) %>%
+  mutate(
+    Neighborhood = ifelse(Neighborhood!="Crawfor"&Neighborhood!="NoRidge"&
+                            Neighborhood!="BrkSide", "others", Neighborhood),
+    Condition.1 = ifelse(Condition.1!="PosN" & Condition.1!="Norm",
+                         "others", Condition.1),
+    Fireplace.Qu = ifelse(is.na(as.character(Fireplace.Qu)), 0, 1),
+    Functional = ifelse(Functional=="Maj2", "Maj2", "others"),
+    Garage.Type = ifelse(is.na(as.character(Garage.Type)), 0, 1),
+    Bsmt.Exposure = ifelse(Bsmt.Exposure=="Gd", "Gd", "others"),
+    MS.SubClass = ifelse(MS.SubClass==90, "90", "others")
+    
+  )
+ypred2 = predict(blinear2, estimater = "BPM", newdata = data.test)
+rmse(exp(ypred2$fit), exp(data.test$price))
+ypred3 = predict(blinear3, estimator = "BPM", newdata = testdata.recoded)
+rmse(exp(ypred3$fit), exp(testdata.recoded$price))
+ypred4 = predict(blinear4, estimator = "BPM", newdata = data.test)
+rmse(exp(ypred4$fit), exp(data.test$price))
+```
+
+You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 
+
+```{r create }
+# name dataframe as predictions! DO NOT CHANGE
+predictions = as.data.frame(Yhat)
+predictions$PID = ames_test$PID
+save(predictions, file="predict.Rdata")
+```
+
+Your models will be evaluated on the following criteria on the test data: 
+
+* Bias:  Average (Yhat-Y)  positive values indicate the model tends to overestimate price (on average) while negative values indicate the model tends to underestimate price.
+
+* Maximum Deviation:  Max |Y-Yhat| -  identifies the worst prediction  made in the validation data set.
+
+* Mean Absolute Deviation:  Average |Y-Yhat| - the average error (regardless of sign).
+
+* Root Mean Square Error: Sqrt Average (Y-Yhat)^2
+
+* Coverage:  Average( lwr < Y < upr) 
+
+In order to have a passing wercker badge, your file for predictions needs to be the same length as the test data, with three columns:  fitted values, lower CI and upper CI values in that order with names, fit, lwr, and upr respectively.  
+
+You will be able to see your scores on the score board (coming soon!).  They will be initialized by a predction based on the mean in the training data.
+
+_Model Check_ - Test your prediction on the first observation in the training and test data set to make sure that the model gives a reasonable answer and include this in a supplement of your report. This should be done BY HAND using a calculator (this means use the raw data from the original dataset and manually calculate all transformations and interactions with your calculator)! Models that do not give reasonable answers will be given a minimum 2 letter grade reduction. Also be careful as you cannot use certain transformations [log or inverse x] if a variable has values of 0.
+
+### Part II: Complex Model
+
+In this part you may go all out for constructing a best fitting model for predicting housing prices using methods that we have covered this semester.  You should feel free to to create any new variables (such as quadratic, interaction, or indicator variables, splines, etc). The variable `TotalSq = X1st.Flr.SF+X2nd.Flr.SF` was added to the dataframe (that does not include basement area, so you may improve on this. A relative grade is assigned by comparing your fit on the test set to that of your fellow students with bonus points awarded to those who substantially exceed their fellow students and point reductions occurring for models which fit exceedingly poorly.  
+
+Update your predictions using your complex model to provide point estimates and CI.
+
+```{r predict-model2, echo=FALSE}
+# replace model1 with model2
+predictions = as.data.frame(predict(model1, newdata=ames_test, interval = "pred"))
+predictions$PID = ames_test$PID
+save(predictions, file="predict.Rdata")
+```
+
+You may iterate here as much as you like exploring different models until you are satisfied with your results.
+
+### Part III: Write Up
+
+Once you are satisfied with your model, provide a write up of your data analysis project in a new Rmd file/pdf file: `writeup.Rmd` by copying over salient parts of your R notebook. The written assignment consists of five parts:
+
+1. Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+2. Development and assessment of an initial model from Part I (10 points)
+
+* Initial model: must include a summary table and an explanation/discussion for variable selection.  Interpretation of coefficients desirable for full points.
+
+* Model selection: must include a discussion
+
+* Residual: must include a residual plot and a discussion
+
+* RMSE: must include an RMSE and an explanation  (other criteria desirable)
+
+* Model testing: must include an explanation
+
+3. Development of the final model (20 points)
+
+* Final model: must include a summary table
+
+* Variables: must include an explanation
+
+* Variable selection/shrinkage: must use appropriate method and include an explanation
+
+
+
+4. Assessment of the final model (25 points)
+
+* Residual: must include a residual plot and a discussion
+
+* RMSE: must include an RMSE and an explanation  (other criteria desirable)
+
+* Model evaluation: must include an evaluation discussion
+
+* Model testing : must include a discussion
+
+* Model result: must include a selection of the top 10 undervalued and overvalued  houses
+
+5. Conclusion (10 points): must include a summary of results and a discussion of things learned
+
+
+
+### Part IV
+Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
+This should have the same format as the models in Part I and II.
+
+10 points
+
+### Class Presentations
+
+Each Group should prepare 5 slides in their Github repo:  (save as slides.pdf)
+
+* Most interesting graphic  (a picture is worth a thousand words prize!)  
+
+* Best Model (motivation, how you found it, why you think it is best)
+
+* Best Insights into predicting Sales Price.
+
+* 2 Best Houses to purchase  (and why)
+
+* Best Team Name/Graphic
+
+We will select winners based on the above criteria and overall performance.
+
+
+Finally your repo should have: `writeup.Rmd`, `writeup.pdf`, `slides.Rmd` (and whatever output you use for the presentation) and `predict.Rdata` and `predict-validation.Rdata`.
