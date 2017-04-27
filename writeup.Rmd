@@ -1,0 +1,81 @@
+---
+title: "writeup"
+author: "BayeStar"
+date: "April 26, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
+### Exploratory data analysis
+
+```{r}
+load("ames_train.Rdata")
+```
+
+```{r}
+# price v.s. neighborhood
+ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
+  theme_bw()+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  geom_boxplot()+
+  xlab('')+
+  ylab('Price')+
+  ggtitle("Figure 1. Price by Neighborhood")
+
+# price v.s. Enclosed.Porch
+ames_train %>%
+  mutate(Porch = ifelse(Enclosed.Porch==0, "w/ porch", "w/o porch")) %>%
+  ggplot(aes(x=Enclosed.Porch, y=price))+
+  geom_point(col="dark blue", cex=1, alpha=0.5)+
+  facet_wrap(~Porch)+
+  xlab("Porch Area")+
+  ylab("Price")+
+  theme_bw()+
+  ggtitle("Figure 2. Price against Porch Area")
+
+# year
+ggplot(ames_train, aes(x=Year.Built, y=price,alpha = 0.5))+
+  geom_point(col="dark blue", cex=1)+
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2)+I(x^3), 
+              col="black", se=F, size=0.7)+
+  theme_bw()+
+  theme(legend.position="none")+
+  ylab('Price')+
+  xlab('')+
+  ggtitle("Figure 3. Price Trend")
+  
+# Neighborhood and TotalSq
+ames_train %>%
+  filter(Neighborhood=="OldTown" |Neighborhood=="NridgHt"|
+           Neighborhood=="IDOTRR"|Neighborhood=="Veenker") %>%
+  ggplot(aes(x=TotalSq, y=price))+
+  geom_point(col="dark blue", cex=1, alpha=0.5)+
+  facet_wrap(~Neighborhood)+
+  theme_bw()+
+  xlab("Total Square")+
+  ylab("Price")+
+  ggtitle("Figure 4. Price by Total Square in Different Neighborhoods")
+
+# Overall.Qual
+ggplot(ames_train, aes(x=factor(Overall.Qual), y=price))+
+  geom_violin(aes(color=factor(Overall.Qual), fill = factor(Overall.Qual)))+
+  theme_bw() +
+  theme(legend.position="none")+
+  xlab("Overal Quality")+
+  ylab("Price")+
+  ggtitle("Figure 5. Price by Overall Quality")
+```
+
+Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+* Figure 1 shows the boxplot of prices by each neighborhood. 
+### Simple Model
+
+### Complex Model
+
+### Conclusion
