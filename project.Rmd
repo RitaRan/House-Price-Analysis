@@ -14,64 +14,134 @@ To get started read in the training data:
 ```{r read-data}
 load("ames_train.Rdata")
 ```
+
+The `Neighborhood` variable, typically of little interest other than to model the location effect, may be of more relevance when used with the [map](http://www.amstat.org/publications/jse/v19n3/decock/AmesResidential.pdf).
+
+We are restricting attention to just the "normal sales" condition.
+
 ## Part I: Simple Model
 
 In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 
 Deal with missing value
 ```{r}
-apply(ames_train,2,function(x) sum(is.na(x)))
-```
-
-```{r}
-#for (i in 1: ncol(ames_train)){
-  #if (any(is.na(ames_train[,i][[1]])) & is.factor(ames_train[,i][[1]])){
-    ames_train[,i][[1]] = addNA( ames_train[,i][[1]])
-  #}else if (any(is.na(ames_train[,i][[1]])) & (!is.factor(ames_train[,i][[1]]))){
-    # ames_train[,i][[1]][is.na(ames_train[,i][[1]])] = mean( ames_train[,i][[1]][!is.na(ames_train[,i][[1]])])
-  #}
-#}
-```
-
-```{r}
-suppressMessages(library(gbm))
-boost.car =gbm(price ~ .,
-data=ames_train,
-n.trees =5000, interaction.depth =4)
-```
-```{r}
-rmse = function(y, ypred) {
-  rmse = sqrt(mean((y - ypred)^2))
-  return(rmse)
+# clean data
+clean_data = function(xdata){
+xdata %>%
+    mutate(Alley = as.factor(ifelse(is.na(as.character(Alley)), 
+                                    "No alley access", as.character(Alley))),
+           Bsmt.Qual = as.factor(ifelse(is.na(as.character(Bsmt.Qual)), 
+                                           "No Basement", as.character(Bsmt.Qual))),
+           Bsmt.Cond = as.factor(ifelse(is.na(as.character(Bsmt.Cond)), 
+                                           "No Basement", as.character(Bsmt.Cond))),
+           BsmtFin.Type.1 = as.factor(ifelse(is.na(as.character(BsmtFin.Type.1)), 
+                                           "No Basement", as.character(BsmtFin.Type.1))),
+           BsmtFin.Type.2 = as.factor(ifelse(is.na(as.character(BsmtFin.Type.2)), 
+                                           "No Basement", as.character(BsmtFin.Type.2))),
+           Bsmt.Exposure = as.factor(ifelse(is.na(as.character(Bsmt.Exposure))|
+                                              as.character(Bsmt.Exposure) == "", 
+                                           "No Basement", as.character(Bsmt.Exposure))),
+           Bsmt.Unf.Rate.SF = ifelse(Total.Bsmt.SF!=0, Bsmt.Unf.SF/Total.Bsmt.SF, 0),
+           Bsmt.Full.Bath = ifelse(is.na(Bsmt.Full.Bath),0,Bsmt.Full.Bath),
+           Bsmt.Half.Bath = ifelse(is.na(Bsmt.Half.Bath),0,Bsmt.Half.Bath),
+           #Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
+           #                             Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
+           #Bath = as.factor(ifelse(Half.Bath!=0,
+           #                             Full.Bath+0.5,Full.Bath)),
+           Fireplace.Qu = as.factor(ifelse(is.na(as.character(Fireplace.Qu)), 
+                                           "No Fireplace", as.character(Fireplace.Qu))),
+           Garage.Type = as.factor(ifelse(is.na(as.character(Garage.Type)),
+                                           "No Garage", as.character(Garage.Type))),
+           Garage.Finish = as.factor(ifelse(is.na(as.character(Garage.Finish))|
+                                              as.character(Garage.Finish) == "",
+                                           "No Garage", as.character(Garage.Finish))),
+           Garage.Qual = as.factor(ifelse(is.na(as.character(Garage.Qual)),
+                                           "No Garage", as.character(Garage.Qual))),
+           Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
+                                          "Gd", as.character(Garage.Cond))),
+           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|as.character(Garage.Cond)=="Po",
+                                           "No Garage", as.character(Garage.Cond))),
+           Pool.Area = as.factor(ifelse(Pool.Area==0,
+                                           "N", "Y")),
+           Fence = as.factor(ifelse(is.na(as.character(Fence)),
+                                           "No Fence", as.character(Fence))),
+           Misc.Feature = as.factor(ifelse(is.na(as.character(Misc.Feature)),
+                                           "None", as.character(Misc.Feature))),
+           Mas.Vnr.Type = as.factor(ifelse(as.character(Mas.Vnr.Type) == "",
+                                           "None", as.character(Mas.Vnr.Type))),
+           Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
+           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
+                                  Garage.Yr.Blt),
+           Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", 
+                                           "Fa", as.character(Kitchen.Qual))),
+           Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", 
+                                         "Fa", as.character(Heating.QC))),
+           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
+           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
+                                          "Gd", as.character(Garage.Qual))),
+           Electrical = as.factor(ifelse(as.character(Electrical) == "", 
+                                         "SBrkr", as.character(Electrical))),
+           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
+                                          "Feedr", as.character(Condition.2))),
+           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
+                                           "Fa", as.character(Bsmt.Qual))),
+           #Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Veenerk",
+           #                                "StoneBr", as.character(Neighborhood))),
+           Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
+                                          "NPkVill", as.character(Neighborhood)))
+          )%>%
+    dplyr::select(-c(Lot.Frontage,Pool.QC,Pool.Area))
 }
-```
 
-```{r}
-results = summary(boost.car,plotit = FALSE)
-results
-```
+# remove outliers
+ames_train = clean_data(ames_train)
+ames_train = ames_train[ames_train$price<580000,-1]
+remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
+remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
+remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
+ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
-```{r model1}
-model1 = lm(log(price)~  Overall.Qual + Neighborhood+area+BsmtFin.SF.1 + Total.Bsmt.SF+Bsmt.Qual +Garage.Area
-            + Kitchen.Qual + Mas.Vnr.Area + Lot.Area + Year.Remod.Add + Overall.Cond+Year.Built
-            +Lot.Frontage+Central.Air+Exterior.1st+BsmtFin.SF.2+Wood.Deck.SF+MS.Zoning,data =ames_train)
+# fit model
+model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add +  Garage.Area  + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
 summary(model1)
 ```
+
 ### Model Evaluation on Test Data
 Create predicted values for price using your model using the testing data
 
+```{r read-test-data}
+load("ames_test.Rdata")
+ames_test = clean_data(ames_test)
+```
+
 ```{r predict-model1, echo=FALSE}
-#Yhat = predict(model1, newdata=ames_test, interval = "pred")
+Yhat = predict(model1, newdata=ames_test, interval = "pred")
+Yhat = Yhat^4
 ```
 
+You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 
 
 ```{r}
-model1 =gbm(price~.,data =ames_train,n.trees =5000, interaction.depth =15)
-```
-
-
-```{r}
-predictions = as.data.frame(predict(model1, newdata=ames_test, interval = "pred",n.trees = 5000))
+# name dataframe as predictions! DO NOT CHANGE
+predictions = as.data.frame(Yhat)
 predictions$PID = ames_test$PID
 save(predictions, file="predict.Rdata")
 ```
+
+Your models will be evaluated on the following criteria on the test data: 
+
+* Bias:  Average (Yhat-Y)  positive values indicate the model tends to overestimate price (on average) while negative values indicate the model tends to underestimate price.
+
+* Maximum Deviation:  Max |Y-Yhat| -  identifies the worst prediction  made in the validation data set.
+
+* Mean Absolute Deviation:  Average |Y-Yhat| - the average error (regardless of sign).
+
+* Root Mean Square Error: Sqrt Average (Y-Yhat)^2
+
+* Coverage:  Average( lwr < Y < upr) 
+
+In order to have a passing wercker badge, your file for predictions needs to be the same length as the test data, with three columns:  fitted values, lower CI and upper CI values in that order with names, fit, lwr, and upr respectively.  
+
+You will be able to see your scores on the score board (coming soon!).  They will be initialized by a predction based on the mean in the training data.
+
+_Model Check_ - Test your prediction on the first observation in the training and test data set to make sure that the model gives a reasonable answer and include this in a supplement of your report. This should be done BY HAND using a calculator (this means use the raw data from the original dataset and manually calculate all transformations and interactions with your calculator)! Models that do not give reasonable answers will be given a minimum 2 letter grade reduction. Also be careful as you cannot use certain transformations [log or inverse x] if a variable has values of 0.
