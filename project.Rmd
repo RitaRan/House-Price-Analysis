@@ -35,16 +35,39 @@ In the first model you are allowed only limited manipulations of the original da
 
 2. Clean Outliers
 
-* Based on the ordered boxplots of `price` vs. `Neighborhood`, we found the two most expensive neighborhoods `` have few properties with extremely high price
+* Based on the ordered boxplots of `price` vs. `Neighborhood`(showed below), we found the two most expensive neighborhoods "NridgHt" and "NoRidge" have four properties with extremely high prices(>$580,000). Since they are far away from the main price cluster, we decided to treat them as outliers and remove them. We also check the other neighborhoods and found that the neighborhood "Gilbert" and "NAmes" also have prices extremely high. Those prices are also removed.
 
 ```{r}
-
+# price v.s. neighborhood
+ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
+  theme_bw()+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+  geom_boxplot()+
+  xlab('')+
+  ylab('Price')+
+  ggtitle("Figure 1. Price by Neighborhood")
 ```
 
+3. Transformations of the Data and Fit Model
+
+* Transforamtion of response variable `price`:
+We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots show below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found `price` needs a log transformation. 
+
+* Model build and model selection:
+We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. Finally we end up with a model with 20 variables.
+
+* Further improvement:
+What we did for further imporvement is plotting individual price vs. the selected features. Log transformation is used on `Lot.Area`. We also double checked the boxcox plot on the updataed model. `price`^0.25 was used to replace the log transformation. We finally end up with a model with a rmse 15453.41.
 
 ```{r}
-plot(ames_train$Garage.Yr.Blt[!is.na(ames_train$Garage.Yr.Blt)], ames_train$price[!is.na(ames_train$Garage.Yr.Blt)]^0.25)
-points(rep(1900,sum(is.na(ames_train$Garage.Yr.Blt))), ames_train$price[is.na(ames_train$Garage.Yr.Blt)]^0.25)
+simple_model = lm(price ~ TotalSq, data = ames_train)
+plot(simple_model)
+boxcox(simple_model)
+```
+
+The full R code and analysis is shown below.
+
+```{r}
 # clean data
 clean_data = function(xdata){
 xdata %>%
@@ -119,6 +142,7 @@ ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 # fit model
 model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
 summary(model1)
+plot(model1)
 ```
 
 ### Model Evaluation on Test Data
