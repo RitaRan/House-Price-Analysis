@@ -23,13 +23,36 @@ We are restricting attention to just the "normal sales" condition.
 
 In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 
-Deal with missing value
+1. Clean Data
+
+* Some variables with a lot of NAs are categorical variables. After checking the data, we found the reason for having so many NAs is because the properties do have the corresponding features. In order to keep as much information as possible, we change those NAs as new levels. For example, NAs in `Alley` are recoded as "No alley access". The variables that are dealt with this way include `Bsmt.Qual`, `Bsmt.Cond`, `BsmtFin.Type.1`, `BsmtFin.Type.2`, `Bsmt.Exposure`, `Bsmt.Full.Bath`, `Bsmt.Half.Bath`, `Fireplace.Qu`, `Garage.Type`, `Garage.Finish`, `Garage.Qual`, `Garage.Cond`, `Fence`, `Misc.Feature`, `Mas.Vnr.Type`, `Mas.Vnr.Area`, ``
+
+* The second issue we found in the data is that new levels are identified in the test data, which causes error messages when making predictions. After using `table()` to check the new levels, we found the new levels only contain one data point, so we decided to classify the the new level to its closest class. For example, `Kitchen.Qual` contains 1 "Po"(poor) in the test data which is a new level, so we reclassify this data point as "Fa"(fair) which is its closest class. The variables that are dealt with this way include `Kitchen.Qual`, `Heating.QC`, `Electrical`, `Condition.2`, `Neighborhood`.
+
+* The third issue we found is that `Lot.Frontage` and `Garage.Yr.Blt` are two continuous variables with a lot of NAs. We are not able to create a new level for the NAs as what we did to the categorical variables. After checking the codebook, we found `Lot.Fontage` might not be useful in predicting the price, which is also proved to be unimportant when we try to fit the boosting model, so we simply droped this variable.
+
+* Lastly, we created a few new categorical variables for interaction.
+
+2. Clean Outliers
+
+* Based on the ordered boxplots of `price` vs. `Neighborhood`, we found the two most expensive neighborhoods `` have few properties with extremely high price
+
 ```{r}
+
+```
+
+
+```{r}
+plot(ames_train$Garage.Yr.Blt[!is.na(ames_train$Garage.Yr.Blt)], ames_train$price[!is.na(ames_train$Garage.Yr.Blt)]^0.25)
+points(rep(1900,sum(is.na(ames_train$Garage.Yr.Blt))), ames_train$price[is.na(ames_train$Garage.Yr.Blt)]^0.25)
 # clean data
 clean_data = function(xdata){
 xdata %>%
-    mutate(Alley = as.factor(ifelse(is.na(as.character(Alley)), 
+    mutate(# replace NAs with new levels
+           Alley = as.factor(ifelse(is.na(as.character(Alley)), 
                                     "No alley access", as.character(Alley))),
+           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
+                                           "Fa", as.character(Bsmt.Qual))),
            Bsmt.Qual = as.factor(ifelse(is.na(as.character(Bsmt.Qual)), 
                                            "No Basement", as.character(Bsmt.Qual))),
            Bsmt.Cond = as.factor(ifelse(is.na(as.character(Bsmt.Cond)), 
@@ -44,10 +67,6 @@ xdata %>%
            Bsmt.Unf.Rate.SF = ifelse(Total.Bsmt.SF!=0, Bsmt.Unf.SF/Total.Bsmt.SF, 0),
            Bsmt.Full.Bath = ifelse(is.na(Bsmt.Full.Bath),0,Bsmt.Full.Bath),
            Bsmt.Half.Bath = ifelse(is.na(Bsmt.Half.Bath),0,Bsmt.Half.Bath),
-           #Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
-           #                             Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
-           #Bath = as.factor(ifelse(Half.Bath!=0,
-           #                             Full.Bath+0.5,Full.Bath)),
            Fireplace.Qu = as.factor(ifelse(is.na(as.character(Fireplace.Qu)), 
                                            "No Fireplace", as.character(Fireplace.Qu))),
            Garage.Type = as.factor(ifelse(is.na(as.character(Garage.Type)),
@@ -55,14 +74,15 @@ xdata %>%
            Garage.Finish = as.factor(ifelse(is.na(as.character(Garage.Finish))|
                                               as.character(Garage.Finish) == "",
                                            "No Garage", as.character(Garage.Finish))),
+           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
+                                          "Gd", as.character(Garage.Qual))),
            Garage.Qual = as.factor(ifelse(is.na(as.character(Garage.Qual)),
                                            "No Garage", as.character(Garage.Qual))),
            Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
                                           "Gd", as.character(Garage.Cond))),
            Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|as.character(Garage.Cond)=="Po",
                                            "No Garage", as.character(Garage.Cond))),
-           Pool.Area = as.factor(ifelse(Pool.Area==0,
-                                           "N", "Y")),
+           # deal with new level issue in test data
            Fence = as.factor(ifelse(is.na(as.character(Fence)),
                                            "No Fence", as.character(Fence))),
            Misc.Feature = as.factor(ifelse(is.na(as.character(Misc.Feature)),
@@ -70,25 +90,20 @@ xdata %>%
            Mas.Vnr.Type = as.factor(ifelse(as.character(Mas.Vnr.Type) == "",
                                            "None", as.character(Mas.Vnr.Type))),
            Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
-           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
-                                  Garage.Yr.Blt),
            Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", 
                                            "Fa", as.character(Kitchen.Qual))),
            Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", 
                                          "Fa", as.character(Heating.QC))),
-           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
-           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
-                                          "Gd", as.character(Garage.Qual))),
            Electrical = as.factor(ifelse(as.character(Electrical) == "", 
                                          "SBrkr", as.character(Electrical))),
            Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
                                           "Feedr", as.character(Condition.2))),
-           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
-                                           "Fa", as.character(Bsmt.Qual))),
-           #Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Veenerk",
-           #                                "StoneBr", as.character(Neighborhood))),
            Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
-                                          "NPkVill", as.character(Neighborhood)))
+                                          "NPkVill", as.character(Neighborhood))),
+           # create new variables
+           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
+           Pool.Area = as.factor(ifelse(Pool.Area==0,"N", "Y")),
+           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2, Garage.Yr.Blt)
           )%>%
     dplyr::select(-c(Lot.Frontage,Pool.QC,Pool.Area))
 }
@@ -102,7 +117,7 @@ remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","Grn
 ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
 # fit model
-model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add +  Garage.Area  + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
+model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
 summary(model1)
 ```
 
