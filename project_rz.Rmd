@@ -95,8 +95,9 @@ In the first model you are allowed only limited manipulations of the original da
 
 ```{r model1}
 library(MASS)
+set.seed(1)
 load("ames_train.Rdata")
-ames_train = clean_data(ames_train)
+
 ames_train = ames_train[ames_train$price<580000,-1]
 remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
 remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
@@ -105,10 +106,20 @@ remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","Grn
 #remove_idx4 = c(1:nrow(ames_train))[ames_train$Lot.Area>30000]
 ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
-model1 = lm(price^(0.25) ~ TotalSq*Neighborhood + poly(Year.Built,3) + Year.Remod.Add +  Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond + Heating.QC, data=ames_train)
+train = sample(1:nrow(ames_train),nrow(ames_train)*0.8)
+ames_train.train = ames_train[train,]
+ames_train.test = ames_train[-train,]
+ames_train.train = clean_data(ames_train.train)
+ames_train.test = clean_data(ames_train.test)
 
-model = lm(price~TotalSq*Neighborhood,data=ames_train)
+#test on train data
+model1 = lm(price^(0.25) ~ TotalSq*Neighborhood + poly(Year.Built,3) + Year.Remod.Add +  Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond + Heating.QC, data=ames_train.train)
+Yhat = predict(model1, newdata=ames_train.test, interval = "pred")
+Yhat = Yhat^4
+rmse(Yhat[,1],ames_train.test$price)
 
+
+# test on test data
 load("ames_test.Rdata")
 ames_test = clean_data(ames_test)
 Yhat = predict(model1, newdata=ames_test, interval = "pred")
@@ -157,6 +168,50 @@ library(leaps)
 x = model.matrix(log(price)~., data)
 table(ames_train$Condition.2)
 table(ames_test$Condition.2)
+```
+```{r}
+# random forest
+set.seed(1)
+load("ames_train.Rdata")
+ames_train = clean_data(ames_train)
+load("ames_test.Rdata")
+ames_test = clean_data(ames_test[,-1])
+
+ames_train = ames_train[ames_train$price<580000,-1]
+remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
+remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
+remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
+#remove_idx4 = c(1:nrow(ames_train))[ames_train$Year.Built<1900&ames_train$price>250000]
+#remove_idx4 = c(1:nrow(ames_train))[ames_train$Lot.Area>30000]
+ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
+
+ames_test = rbind(ames_train[1, ] , ames_test)
+ames_test = ames_test[-1,]
+
+library(randomForest)
+
+nt = seq(400,800,50)
+na = seq(6,12,2)
+error = matrix(0,length(na),length(nt))
+i = 1 
+j = 1
+for (i in 1:length(na)) {
+  for (j in 1:length(nt)) {
+    RF = randomForest(price^0.25~TotalSq + Overall.Qual + area + Garage.Cars + Exter.Qual + X1st.Flr.SF + Neighborhood + Total.Bsmt.SF + Year.Built + Full.Bath + Kitchen.Qual + Garage.Yr.Blt + Garage.Area  +   Lot.Area + BsmtFin.SF.1 + Year.Remod.Add  + Open.Porch.SF + Garage.Type + Bsmt.Qual + X2nd.Flr.SF + Garage.Finish + TotRms.AbvGrd + Fireplaces + Fireplace.Qu + Mas.Vnr.Area + Heating.QC + BsmtFin.Type.1 + Exterior.1st, data = ames_train,replace = TRUE,mtry=na[i],ntree=nt[j])
+    Yhat = predict(RF,ames_test)^4
+    error[i,j] = rmse(Yhat, ames_test$price)
+  }
+}
+error
+plot(nt,error[1,],type = 'l', xlab = "Number of Trees", ylab="Error Rate",col="black")
+lines(nt,error[2,],col='red')
+title(main="Error Rate of Random Forest", sub="Number of Trees & Number of attributes")
+legend("topright",col = c("black","red"), legend = c("m = 3","m = 7"),lty=1,lwd=1)
+
+RF = randomForest(price^0.25~., data = ames_train,replace = TRUE,mtry=na[i],ntree=nt[j])
+importance(RF)
+varImpPlot(RF)
+
 ```
 
 
