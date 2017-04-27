@@ -84,11 +84,7 @@ xdata %>%
            Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
                                           "Feedr", as.character(Condition.2))),
            Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
-                                           "Fa", as.character(Bsmt.Qual))),
-           #Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Veenerk",
-           #                                "StoneBr", as.character(Neighborhood))),
-           Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
-                                          "NPkVill", as.character(Neighborhood)))
+                                           "Fa", as.character(Bsmt.Qual)))
           )%>%
     dplyr::select(-c(Lot.Frontage,Pool.QC,Pool.Area))
 }
