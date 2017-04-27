@@ -150,6 +150,7 @@ par(mfrow = c(2,2));plot(model1)
 ```
 
 4. Evaluate Model on Test Data
+
 Create predicted values for price using your model using the testing data
 
 ```{r read-test-data}
