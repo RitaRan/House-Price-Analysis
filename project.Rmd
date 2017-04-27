@@ -1,13 +1,14 @@
 ---
 title: "project.Rmd"
-author: "Yijun Jiang"
+author: "BayeStar"
 date: "4/21/2017"
 output: html_document
 ---
-### Read in Training Data
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 library(MASS)
 library(dplyr)
+library(ggplot2)
 ```
 
 To get started read in the training data:
@@ -33,7 +34,7 @@ In the first model you are allowed only limited manipulations of the original da
 
 * Lastly, we created a few new categorical variables for interaction.
 
-2. Clean Outliers
+2. Eliminate Outliers
 
 * Based on the ordered boxplots of `price` vs. `Neighborhood`(showed below), we found the two most expensive neighborhoods "NridgHt" and "NoRidge" have four properties with extremely high prices(>$580,000). Since they are far away from the main price cluster, we decided to treat them as outliers and remove them. We also check the other neighborhoods and found that the neighborhood "Gilbert" and "NAmes" also have prices extremely high. Those prices are also removed.
 
@@ -45,10 +46,10 @@ ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
   geom_boxplot()+
   xlab('')+
   ylab('Price')+
-  ggtitle("Figure 1. Price by Neighborhood")
+  ggtitle("Price by Neighborhood")
 ```
 
-3. Transformations of the Data and Fit Model
+3. Transform Data and Fit Model
 
 * Transforamtion of response variable `price`:
 We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots show below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found `price` needs a log transformation. 
@@ -61,7 +62,10 @@ What we did for further imporvement is plotting individual price vs. the selecte
 
 ```{r}
 simple_model = lm(price ~ TotalSq, data = ames_train)
-plot(simple_model)
+par(mfrow = c(2,2)); plot(simple_model)
+```
+
+```{r}
 boxcox(simple_model)
 ```
 
@@ -119,7 +123,8 @@ xdata %>%
                                          "Fa", as.character(Heating.QC))),
            Electrical = as.factor(ifelse(as.character(Electrical) == "", 
                                          "SBrkr", as.character(Electrical))),
-           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
+           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in%
+                                            c("Artery","RRAn","RRAe"),
                                           "Feedr", as.character(Condition.2))),
            Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
                                           "NPkVill", as.character(Neighborhood))),
@@ -141,30 +146,59 @@ ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
 # fit model
 model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
-summary(model1)
-plot(model1)
+par(mfrow = c(2,2));plot(model1)
 ```
 
-### Model Evaluation on Test Data
+4. Evaluate Model on Test Data
+
 Create predicted values for price using your model using the testing data
 
 ```{r read-test-data}
 load("ames_test.Rdata")
-ames_test = clean_data(ames_test)
 ```
 
 ```{r predict-model1, echo=FALSE}
-Yhat = predict(model1, newdata=ames_test, interval = "pred")
-Yhat = Yhat^4
+# clean test data
+ames_test = clean_data(ames_test)
+# prediction
+Yhat1 = predict(model1, newdata=ames_test, interval = "pred")
+# change back to original units
+Yhat1 = Yhat1^4
 ```
 
 You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 
 
 ```{r}
 # name dataframe as predictions! DO NOT CHANGE
-predictions = as.data.frame(Yhat)
+predictions = as.data.frame(Yhat1)
 predictions$PID = ames_test$PID
 save(predictions, file="predict.Rdata")
+```
+
+```{r}
+# test criteria 
+rmse = function(y, yhat){
+  sqrt(mean((y-yhat)^2))
+}
+
+bias = function(yhat, y){
+  mean(yhat-y)
+}
+maxDeviation = function(yhat, y){
+  max(abs(yhat-y))
+}
+meanDeviation = function(yhat, y){
+  mean(abs(yhat-y))
+}
+coverage = function(y, lwr, upr){
+  mean(y>=lwr && y<=upr)
+}
+# evaluation 
+rms1 = rmse(Yhat1[,1], ames_test$price)
+bias1 = bias(Yhat1[,1], ames_test$price)
+maxDeviation1 = maxDeviation(Yhat1[,1], ames_test$price)
+meanDeviation1 = meanDeviation(Yhat1[,1], ames_test$price)
+coverage1 = coverage(ames_test$price, Yhat1[,2], Yhat1[,3])
 ```
 
 Your models will be evaluated on the following criteria on the test data: 
@@ -184,3 +218,87 @@ In order to have a passing wercker badge, your file for predictions needs to be 
 You will be able to see your scores on the score board (coming soon!).  They will be initialized by a predction based on the mean in the training data.
 
 _Model Check_ - Test your prediction on the first observation in the training and test data set to make sure that the model gives a reasonable answer and include this in a supplement of your report. This should be done BY HAND using a calculator (this means use the raw data from the original dataset and manually calculate all transformations and interactions with your calculator)! Models that do not give reasonable answers will be given a minimum 2 letter grade reduction. Also be careful as you cannot use certain transformations [log or inverse x] if a variable has values of 0.
+
+### Part II: Complex Model
+
+In this part you may go all out for constructing a best fitting model for predicting housing prices using methods that we have covered this semester.  You should feel free to to create any new variables (such as quadratic, interaction, or indicator variables, splines, etc). The variable `TotalSq = X1st.Flr.SF+X2nd.Flr.SF` was added to the dataframe (that does not include basement area, so you may improve on this. A relative grade is assigned by comparing your fit on the test set to that of your fellow students with bonus points awarded to those who substantially exceed their fellow students and point reductions occurring for models which fit exceedingly poorly.  
+
+Update your predictions using your complex model to provide point estimates and CI.
+
+```{r predict-model2, echo=FALSE}
+# replace model1 with model2
+predictions = as.data.frame(predict(model1, newdata=ames_test, interval = "pred"))
+predictions$PID = ames_test$PID
+save(predictions, file="predict.Rdata")
+```
+
+You may iterate here as much as you like exploring different models until you are satisfied with your results.
+
+### Part III: Write Up
+
+Once you are satisfied with your model, provide a write up of your data analysis project in a new Rmd file/pdf file: `writeup.Rmd` by copying over salient parts of your R notebook. The written assignment consists of five parts:
+
+1. Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+2. Development and assessment of an initial model from Part I (10 points)
+
+* Initial model: must include a summary table and an explanation/discussion for variable selection.  Interpretation of coefficients desirable for full points.
+
+* Model selection: must include a discussion
+
+* Residual: must include a residual plot and a discussion
+
+* RMSE: must include an RMSE and an explanation  (other criteria desirable)
+
+* Model testing: must include an explanation
+
+3. Development of the final model (20 points)
+
+* Final model: must include a summary table
+
+* Variables: must include an explanation
+
+* Variable selection/shrinkage: must use appropriate method and include an explanation
+
+
+
+4. Assessment of the final model (25 points)
+
+* Residual: must include a residual plot and a discussion
+
+* RMSE: must include an RMSE and an explanation  (other criteria desirable)
+
+* Model evaluation: must include an evaluation discussion
+
+* Model testing : must include a discussion
+
+* Model result: must include a selection of the top 10 undervalued and overvalued  houses
+
+5. Conclusion (10 points): must include a summary of results and a discussion of things learned
+
+
+
+### Part IV
+Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
+This should have the same format as the models in Part I and II.
+
+10 points
+
+### Class Presentations
+
+Each Group should prepare 5 slides in their Github repo:  (save as slides.pdf)
+
+* Most interesting graphic  (a picture is worth a thousand words prize!)  
+
+* Best Model (motivation, how you found it, why you think it is best)
+
+* Best Insights into predicting Sales Price.
+
+* 2 Best Houses to purchase  (and why)
+
+* Best Team Name/Graphic
+
+We will select winners based on the above criteria and overall performance.
+
+
+Finally your repo should have: `writeup.Rmd`, `writeup.pdf`, `slides.Rmd` (and whatever output you use for the presentation) and `predict.Rdata` and `predict-validation.Rdata`.
