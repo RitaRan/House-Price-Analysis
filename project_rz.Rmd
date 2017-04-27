@@ -95,10 +95,14 @@ In the first model you are allowed only limited manipulations of the original da
 
 ```{r model1}
 library(MASS)
+library(caret)
 set.seed(1)
 load("ames_train.Rdata")
+ames_train = clean_data(ames_train)
+nearZeroVar(ames_train)
 
-ames_train = ames_train[ames_train$price<580000,-1]
+
+ames_train = ames_train[ames_train$price<500000,-1]
 remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
 remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
 remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
