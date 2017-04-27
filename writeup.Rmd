@@ -17,6 +17,13 @@ library(ggplot2)
 load("ames_train.Rdata")
 ```
 
+Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+* Figure 1 shows the boxplot of prices by each neighborhood. It is apparent that prices vary a lot by different neighborhoods. Outliers are also captured and we considered delete some of them. 
+* Figure 2 is a scatterplot of prices against porch area. The left panel corresponds to houses without porch, while the right with porch. We can see that the relationship differs between with and without porch, so we decided to add a dummy variable indicating the existence of porch and an interaction between the dummy and porch area.
+* Figure 3 shows the prices of houses built in various years. There is a non-linear trend, so we considered adding quadratic term of year to capture the non-linearity. 
+* Figure 4 depicts the relationship between prices and total square by neighborhood. (Only four of neighborhoods are shown for plot purpose.) Prices and total square are linearly related, but the linear relationship changes across neigborhood. We considered adding interaction term of total square and neighborhood to capture different slopes. 
+* Figure 5 is a vilion plot showing the distribution of prices by overall quality. Prices are higher, but also vary more for higher quality.  
 ```{r}
 # price v.s. neighborhood
 ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
@@ -25,7 +32,7 @@ ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
   geom_boxplot()+
   xlab('')+
   ylab('Price')+
-  ggtitle("Figure 1. Price by Neighborhood")
+  ggtitle("Figure 1. Prices by Neighborhood")
 
 # price v.s. Enclosed.Porch
 ames_train %>%
@@ -36,7 +43,7 @@ ames_train %>%
   xlab("Porch Area")+
   ylab("Price")+
   theme_bw()+
-  ggtitle("Figure 2. Price against Porch Area")
+  ggtitle("Figure 2. Prices against Porch Area")
 
 # year
 ggplot(ames_train, aes(x=Year.Built, y=price,alpha = 0.5))+
@@ -47,7 +54,7 @@ ggplot(ames_train, aes(x=Year.Built, y=price,alpha = 0.5))+
   theme(legend.position="none")+
   ylab('Price')+
   xlab('')+
-  ggtitle("Figure 3. Price Trend")
+  ggtitle("Figure 3. Prices of Houses Built in Years")
   
 # Neighborhood and TotalSq
 ames_train %>%
@@ -56,25 +63,24 @@ ames_train %>%
   ggplot(aes(x=TotalSq, y=price))+
   geom_point(col="dark blue", cex=1, alpha=0.5)+
   facet_wrap(~Neighborhood)+
+  geom_smooth(method="lm", se=F, col="black", size=0.7)+
   theme_bw()+
   xlab("Total Square")+
   ylab("Price")+
-  ggtitle("Figure 4. Price by Total Square in Different Neighborhoods")
+  ggtitle("Figure 4. Prices by Total Square in Different Neighborhoods")
 
 # Overall.Qual
 ggplot(ames_train, aes(x=factor(Overall.Qual), y=price))+
-  geom_violin(aes(color=factor(Overall.Qual), fill = factor(Overall.Qual)))+
+  geom_violin(aes(color=factor(Overall.Qual), 
+                  fill = factor(Overall.Qual), alpha=0.5))+
   theme_bw() +
   theme(legend.position="none")+
   xlab("Overal Quality")+
   ylab("Price")+
-  ggtitle("Figure 5. Price by Overall Quality")
+  ggtitle("Figure 5. Prices by Overall Quality")
 ```
 
-Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
-
-* Figure 1 shows the boxplot of prices by each neighborhood. 
-### Simple Model
+### Simple Model 
 
 ### Complex Model
 
