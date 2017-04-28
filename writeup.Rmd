@@ -17,8 +17,6 @@ library(ggplot2)
 load("ames_train.Rdata")
 ```
 
-Exploratory data analysis (20 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
-
 * Figure 1 shows the boxplot of prices by each neighborhood. It is apparent that prices vary a lot by different neighborhoods. Outliers are also captured and we considered delete some of them. 
 * Figure 2 is a scatterplot of prices against porch area. The left panel corresponds to houses without porch, while the right with porch. We can see that the relationship differs between with and without porch, so we decided to add a dummy variable indicating the existence of porch and an interaction between the dummy and porch area.
 * Figure 3 shows the prices of houses built in various years. There is a non-linear trend, so we considered adding quadratic term of year to capture the non-linearity. 
@@ -81,8 +79,6 @@ ggplot(ames_train, aes(x=factor(Overall.Qual), y=price))+
 ```
 
 ### Simple Model 
-2. Development and assessment of an initial model from Part I (10 points)
-
 Preprocess - clean data + remove outliers
 ```{r}
 # clean data
