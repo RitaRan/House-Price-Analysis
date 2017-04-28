@@ -421,8 +421,7 @@ save(predictions, file="predict.Rdata")
 ```
 
 ### Model Evaluation
-1. Evaluation
-
+1. Model Evaluation
 For our complex model, we plotted residuals against fitted values. All the residuals clound around zero with no particular patterns, so our model does a decent job. 
 ```{r}
 # training dataset
@@ -455,11 +454,9 @@ kable(res)
 ```
 
 2. Model Checking
-
 Since gradient boosing is hard to compute by hand, we cannot directly use calculators to obtain house price of first observation in both train and test datasets. Instead, we used R function to calculate them. For first observation in the training data, the prediction is 143400, which is a bit greater than the true value 137000. For the training data, the first prediction is 194059, close to the true value 192100. 
 
-3. Results
-
+3. Model Results
 Top 10 undervalued and overvalued houses are shown in the tables below. The most undervalued house is the one with parcel ID 528102010. We may invest in this house and sell it after the price rises. The most overvalued house is the one with parcel ID 921128020. We may sell this house now since its value may drop in the future. 
 ```{r}
 residual = Yhat2 - ames_test$price
