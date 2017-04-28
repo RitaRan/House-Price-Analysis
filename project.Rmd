@@ -241,7 +241,7 @@ We selected a subgroup of variables out of all the predictors by the following c
 
 * Some variables are highly imbalanced. For example, `Utilities` has three categories, but one of the category has 99% of the observations in it. There is small variation and little information within these variables. Thus, these variables are out of our consideration. 
 * Some variables have a large proportion of missing values. For instance, `Alley` has 1395 missing values, consisting of 93% of the training data. We remove these variables since they are noninformative and may cause damage to our models.
-* There is also multicolinearity in the training data. `area` and `TotalSq` have a correlation around 0.99. Since `TotalSq` = `X1st.Flr.S` + `X2nd.Flr.SF`, these three variables are also highly correlated. To avoid multicolinearity, we will not consider `area` and `TotalSq` in our models. 
+* There is also multicolinearity in the training data. For example, `area` and `TotalSq` have a correlation around 0.99. Since To avoid multicolinearity, we will not consider `area` in our models. 
 
 After removing imbalanced, missing, and correlated variables, we ended up with 38 predictors. We built our models based on these predictors. 
 
