@@ -26,7 +26,7 @@ In the first model you are allowed only limited manipulations of the original da
 
 ### Clean Data
 
-* Some variables with a lot of NAs are categorical variables. After checking the data, we found the reason for having so many NAs is because the properties do have the corresponding features. In order to keep as much information as possible, we change those NAs as new levels. For example, NAs in `Alley` are recoded as "No alley access". The variables that are dealt with this way include `Bsmt.Qual`, `Bsmt.Cond`, `BsmtFin.Type.1`, `BsmtFin.Type.2`, `Bsmt.Exposure`, `Bsmt.Full.Bath`, `Bsmt.Half.Bath`, `Fireplace.Qu`, `Garage.Type`, `Garage.Finish`, `Garage.Qual`, `Garage.Cond`, `Fence`, `Misc.Feature`, `Mas.Vnr.Type`, `Mas.Vnr.Area`, ``
+* Some variables with a lot of NAs are categorical variables. After checking the data, we found the reason for having so many NAs is because the properties do not have the corresponding features. In order to keep as much information as possible, we change those NAs as new levels. For example, NAs in `Alley` are recoded as "No alley access". The variables that are dealt with this way include `Bsmt.Qual`, `Bsmt.Cond`, `BsmtFin.Type.1`, `BsmtFin.Type.2`, `Bsmt.Exposure`, `Bsmt.Full.Bath`, `Bsmt.Half.Bath`, `Fireplace.Qu`, `Garage.Type`, `Garage.Finish`, `Garage.Qual`, `Garage.Cond`, `Fence`, `Misc.Feature`, `Mas.Vnr.Type`, `Mas.Vnr.Area`, ``
 
 * The second issue we found in the data is that new levels are identified in the test data, which causes error messages when making predictions. After using `table()` to check the new levels, we found the new levels only contain one data point, so we decided to classify the the new level to its closest class. For example, `Kitchen.Qual` contains 1 "Po"(poor) in the test data which is a new level, so we reclassify this data point as "Fa"(fair) which is its closest class. The variables that are dealt with this way include `Kitchen.Qual`, `Heating.QC`, `Electrical`, `Condition.2`, `Neighborhood`.
 
@@ -229,12 +229,16 @@ You may iterate here as much as you like exploring different models until you ar
 
 ### Data Cleaning
 1. Variable Selection
-We selected a subgroup of variables out of all the predictors by three criteria.
+We selected a subgroup of variables out of all the predictors by the following criterion.
 
+* Some variables are highly imbalanced. For example, `Utilities` has three categories, but one of the category has 99% of the observations in it. There is small variation and little information within these variables. Thus, these variables are out of our consideration. 
+* Some variables have a large proportion of missing values. For instance, `Alley` has 1395 missing values, consisting of 93% of the training data. We remove these variables since they are noninformative and may cause damage to our models.
+* There is also multicolinearity in the training data. `area` and `TotalSq` have a correlation around 0.99. Since `TotalSq` = `X1st.Flr.S` + `X2nd.Flr.SF`, these three variables are also highly correlated. To avoid multicolinearity, we will not consider `area` and `TotalSq` in our models. 
 
-2. Eliminate Outliers
+After removing imbalanced, missing, and correlated variables, we ended up with 38 predictors. We built our models based on these predictors. 
 
-3. Transform Data 
+2. Data Transformation 
+Based on the density plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
 
 ### Model Fitting
 We decided to use Gradient Boosting for linear regression to fit the data. We checked the data and splitted the training set into qualitative variables and quantitative variables. And we found out that among all qualitative ones, 12 have near zero variance, which indicate that the frequency of the most common value to the frequency of the second most common value is large. In this case, we deleted those variables. Among all quantitative variables, 8 have near zero variance, and thus we removed them. Since we only chose quantitaive variables which have no missing values,there is no need to do imputation. Here, we planned to use gibbs sampler and PCA to do imputation. Since imputation over qualitative variables introduces bias, we thus simply converted NAs into a new factor.
