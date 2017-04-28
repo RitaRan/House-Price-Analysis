@@ -20,6 +20,7 @@ library(e1071)
 In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 ```{r read-data}
 load("ames_train.Rdata")
+
 ```
 
 
@@ -255,6 +256,8 @@ Then, we need to convert qualitative predictors to dummy variables in order to u
 # reload data 
 load("ames_train.Rdata")
 load("ames_test.Rdata")
+train_PID = ames_train$PID
+test_PID = ames_test$PID
 ```
 
 ```{r}
@@ -490,6 +493,54 @@ Once you are satisfied with your model, provide a write up of your data analysis
 * Model testing : must include a discussion
 
 * Model result: must include a selection of the top 10 undervalued and overvalued  houses
+
+
+# residual
+
+```{r}
+residul = Ypred - ames_test$price
+qplot(x = Ypred,y = residul)
+
+```
+residuals are uniformly distirbuted over 0.
+
+# RMSE, bias, deviation
+```{r}
+res = data.frame(rmse = c(rmse1, rmse2),
+                 bias = c(bias1, bias2),
+                 maxDeviation = c(maxDeviation1, maxDeviation2),
+                 meanDeviation = c(meanDeviation1, meanDeviation2)
+                 )
+rownames(res) = c("simple model", "complex model")
+kable(res)
+```
+
+# top 10 over underestimate
+```{r}
+residual = Ypred - ames_test$price
+ntest = dim(ames_test)[1]
+nleft = ntest - 10
+
+least_over = sort(residual, partial=nleft)[nleft]
+test_PID[ which(residual > least_over )]
+
+
+
+```
+
+# top 10 under underestimate
+```{r}
+residual = -Ypred + ames_test$price
+ntest = dim(ames_test)[1]
+nleft = ntest - 10
+
+least_over = sort(residual, partial=nleft)[nleft]
+test_PID[ which(residual > least_over )]
+
+
+
+```
+
 
 5. Conclusion (10 points): must include a summary of results and a discussion of things learned
 
