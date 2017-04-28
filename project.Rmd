@@ -241,7 +241,7 @@ We selected a subgroup of variables out of all the predictors by the following c
 
 * Some variables are highly imbalanced. For example, `Utilities` has three categories, but one of the category has 99% of the observations in it. There is small variation and little information within these variables. Thus, these variables are out of our consideration. 
 * Some variables have a large proportion of missing values. For instance, `Alley` has 1395 missing values, consisting of 93% of the training data. We remove these variables since they are noninformative and may cause damage to our models.
-* There is also multicolinearity in the training data. `area` and `TotalSq` have a correlation around 0.99. Since `TotalSq` = `X1st.Flr.S` + `X2nd.Flr.SF`, these three variables are also highly correlated. To avoid multicolinearity, we will not consider `area` and `TotalSq` in our models. 
+* There is also multicolinearity in the training data. For example, `area` and `TotalSq` have a correlation around 0.99. Since To avoid multicolinearity, we will not consider `area` in our models. 
 
 After removing imbalanced, missing, and correlated variables, we ended up with 38 predictors. We built our models based on these predictors. 
 
@@ -535,9 +535,18 @@ When the number of predictors is very large, cleaning data and removing the redu
 
 ## Part IV
 Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
-This should have the same format as the models in Part I and II.
+This should have the same format as the models in Part I and II. 10 points
 
-10 points
+```{r, echo=FALSE}
+load("ames_validation.Rdata")
+pid_validation = ames_validation$PID
+ames_validation = clean_data(ames_validation)%>% select(-PID)
+ames_validation = ames_validation %>% mutate(price = as.numeric(price))
+Yhat<- exp(predict(house.xgboost, transform_data(ames_validation), missing=NA))
+predictions = as.data.frame(Yhat)
+predictions$PID = pid_validation
+save(predictions, file="prediction-validation.Rdata" )
+```
 
 ## Class Presentations
 
