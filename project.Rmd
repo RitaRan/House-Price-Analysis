@@ -9,20 +9,19 @@ knitr::opts_chunk$set(echo = TRUE)
 library(MASS)
 library(dplyr)
 library(ggplot2)
+library(caret)
+library(knitr)
+library(mice)
+library(xgboost)
+library(e1071) 
 ```
 
-To get started read in the training data:
+## Part I: Simple Model
+In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 ```{r read-data}
 load("ames_train.Rdata")
 ```
 
-The `Neighborhood` variable, typically of little interest other than to model the location effect, may be of more relevance when used with the [map](http://www.amstat.org/publications/jse/v19n3/decock/AmesResidential.pdf).
-
-We are restricting attention to just the "normal sales" condition.
-
-## Part I: Simple Model
-
-In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 
 ### Clean Data
 
@@ -145,7 +144,7 @@ remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","Grn
 ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
 # fit model
-model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
+model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
 par(mfrow = c(2,2));plot(model1)
 ```
 
@@ -163,19 +162,7 @@ ames_test = clean_data(ames_test)
 # prediction
 Yhat1 = predict(model1, newdata=ames_test, interval = "pred")
 # change back to original units
-Yhat1 = Yhat1^4
-```
-
-You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 
-
-```{r}
-# name dataframe as predictions! DO NOT CHANGE
-predictions = as.data.frame(Yhat1)
-predictions$PID = ames_test$PID
-save(predictions, file="predict.Rdata")
-```
-
-```{r}
+Yhat1 = exp(Yhat1)
 # test criteria 
 rmse = function(y, yhat){
   sqrt(mean((y-yhat)^2))
@@ -194,31 +181,17 @@ coverage = function(y, lwr, upr){
   mean(y>=lwr && y<=upr)
 }
 # evaluation 
-rms1 = rmse(Yhat1[,1], ames_test$price)
+rmse1 = rmse(Yhat1[,1], ames_test$price)
 bias1 = bias(Yhat1[,1], ames_test$price)
 maxDeviation1 = maxDeviation(Yhat1[,1], ames_test$price)
 meanDeviation1 = meanDeviation(Yhat1[,1], ames_test$price)
 coverage1 = coverage(ames_test$price, Yhat1[,2], Yhat1[,3])
 ```
 
-Your models will be evaluated on the following criteria on the test data: 
-
-* Bias:  Average (Yhat-Y)  positive values indicate the model tends to overestimate price (on average) while negative values indicate the model tends to underestimate price.
-
-* Maximum Deviation:  Max |Y-Yhat| -  identifies the worst prediction  made in the validation data set.
-
-* Mean Absolute Deviation:  Average |Y-Yhat| - the average error (regardless of sign).
-
-* Root Mean Square Error: Sqrt Average (Y-Yhat)^2
-
-* Coverage:  Average( lwr < Y < upr) 
-
-In order to have a passing wercker badge, your file for predictions needs to be the same length as the test data, with three columns:  fitted values, lower CI and upper CI values in that order with names, fit, lwr, and upr respectively.  
-
-You will be able to see your scores on the score board (coming soon!).  They will be initialized by a predction based on the mean in the training data.
-
+### Model Checking
 _Model Check_ - Test your prediction on the first observation in the training and test data set to make sure that the model gives a reasonable answer and include this in a supplement of your report. This should be done BY HAND using a calculator (this means use the raw data from the original dataset and manually calculate all transformations and interactions with your calculator)! Models that do not give reasonable answers will be given a minimum 2 letter grade reduction. Also be careful as you cannot use certain transformations [log or inverse x] if a variable has values of 0.
 
+Based on our model above, we calculated prediction for the first observation in both the training and test data. For the training data, the prediction for the first observation (with PID 526354020) is 11.78. After converting it to original unit, we got 130614, which is very close to the true value 137000. For the test data, the prediction for the first observation is 12.21, which is 200787. This is also a reasonable prediction since the true value is 192100. 
 ## Part II: Complex Model
 
 In this part you may go all out for constructing a best fitting model for predicting housing prices using methods that we have covered this semester.  You should feel free to to create any new variables (such as quadratic, interaction, or indicator variables, splines, etc). The variable `TotalSq = X1st.Flr.SF+X2nd.Flr.SF` was added to the dataframe (that does not include basement area, so you may improve on this. A relative grade is assigned by comparing your fit on the test set to that of your fellow students with bonus points awarded to those who substantially exceed their fellow students and point reductions occurring for models which fit exceedingly poorly.  
@@ -244,25 +217,10 @@ Based on the density plots of continuous variables, we found out that some of th
 We decided to use Gradient Boosting for linear regression to fit the data. We checked the data and splitted the training set into qualitative variables and quantitative variables. And we found out that among all qualitative ones, 12 have near zero variance, which indicate that the frequency of the most common value to the frequency of the second most common value is large. In this case, we deleted those variables. Among all quantitative variables, 8 have near zero variance, and thus we removed them. Since we only chose quantitaive variables which have no missing values,there is no need to do imputation. Here, we planned to use gibbs sampler and PCA to do imputation. Since imputation over qualitative variables introduces bias, we thus simply converted NAs into a new factor.
 Then, we need to convert qualitative predictors to dummy variables in order to use XGBoost model.
 
-```{r setup, include=FALSE}
-library(caret)
-library(knitr)
-library(MASS)
-library(dplyr)
-library(mice)
-library(xgboost)
-library(e1071)  
-```
-
 ```{r}
+# reload data 
 load("ames_train.Rdata")
 load("ames_test.Rdata")
-```
-
-```{r}
-rmse = function(y, yhat){
-  sqrt(mean((y-yhat)^2))
-}
 ```
 
 ```{r}
@@ -316,8 +274,6 @@ ames_train = ames_train %>% mutate(Alley = as.factor(ifelse(is.na(as.character(A
            Condition.2 = as.factor(ifelse(as.character(Condition.2) == "Artery",
                                           "Feedr", as.character(Condition.2))
            ))
-
-#ames_train = ames_train[ames_train$X1st.Flr.SF<3000,]
 
 ames_train = ames_train %>%
   mutate(price = price,
@@ -376,9 +332,6 @@ nzv <- nzv(training.qualitative, saveMetrics = TRUE)
 training.qualitative <- training.qualitative[, !nzv$nzv]
 nzv2 <- nzv(training.quantitative, saveMetrics = TRUE)
 training.quantitative <- training.quantitative[, !nzv2$nzv]
-#tempData <- mice(training.quantitative,m=5,maxit=50,meth='pmm',seed=1234, printFlag=FALSE)
-#tempData <- mice(training.quantitative,m=5 ,maxit=50,meth='pmm', printFlag=FALSE)
-#training.quantitative.imputed <- complete(tempData, 1)
 training.quantitative.imputed <- training.quantitative
 pre.proc <- preProcess(training.quantitative.imputed, method = c("center", "scale", "pca"), thresh = 0.9)
 training.quantitative.imputed.pc <- predict(pre.proc, training.quantitative.imputed)
@@ -413,9 +366,6 @@ testing.quantitative <- testing[, indexs.quantitative]
 testing.qualitative <- testing[, !indexs.quantitative]
 testing.qualitative <- testing.qualitative[, !nzv$nzv]
 testing.quantitative <- testing.quantitative[,!nzv2$nzv] 
-#tempData <- mice(testing.quantitative,m=5,maxit=50,meth='pmm',seed=1234, printFlag=FALSE)
-#tempData <- mice(testing.quantitative,m= 5 ,maxit=50,meth='pmm', printFlag=FALSE)
-#testing.quantitative.imputed <- complete(tempData, 1)
 testing.quantitative.imputed <- testing.quantitative
 testing.quantitative.imputed.pc <- predict(pre.proc, testing.quantitative.imputed)
 testing.dummies <- as.data.frame(predict(dummies, testing.qualitative))
@@ -425,63 +375,50 @@ return (data.matrix(testing.imputed))}
 
 ```{r}
 pred.training.xgboost <- predict(house.xgboost, transform_data(ames_test), missing=NA)
-Yhat = exp(pred.training.xgboost)
-err = abs(Yhat - ames_test$price)
-rmse(Yhat,ames_test$price)
-```
+Yhat2 = exp(pred.training.xgboost)
 
-```{r}
 # name dataframe as predictions! DO NOT CHANGE
-predictions = as.data.frame(Yhat)
+predictions = as.data.frame(Yhat2)
 predictions$PID =pid
 save(predictions, file="predict.Rdata")
 ```
+
 ### Model Evaluation
-1. Dignostics
+1. Evaluation
 
-I checked four criteria:
+We checked the model using by the following criteria. Coverage is not available for boosting. The results of both the simple model and the complex model are shown in the table below.  
 
-Bias:
 ```{r}
-mean(Yhat-ames_test$price)
+rmse2 = rmse(Yhat2, ames_test$price)
+bias2 = bias(Yhat2, ames_test$price)
+maxDeviation2 = maxDeviation(Yhat2, ames_test$price)
+meanDeviation2 = meanDeviation(Yhat2, ames_test$price)
+
+res = data.frame(rmse = c(rmse1, rmse2),
+                 bias = c(bias1, bias2),
+                 maxDeviation = c(maxDeviation1, maxDeviation2),
+                 meanDeviation = c(meanDeviation1, meanDeviation2)
+                 )
+rownames(res) = c("simple model", "complex model")
+kable(res)
 ```
 
-Maximum Deviation: 
+2. Model Checking
+
+Since gradient boosing is hard to compute by hand, we cannot directly use calculators to obtain house price of first observation in both train and test datasets.Instead, we used R function to calculate them. For first observation in the training data, the prediction is 143400, which is a bit greater than the true value 137000. For the training data, the first prediction is 194059, close to the true value 192100. 
+
 ```{r}
-max(abs(Yhat-ames_test$price))
-```
-
-Mean Absolute Deviation:
-```{r}
-mean(abs(Yhat-ames_test$price))
-```
-Mean Square Error:
-```{r}
-sqrt(mean((Yhat-ames_test$price)^2))
-```
-
-We do not know how to calculate the coverage for gradient boosting.
-
-2. Evaluation
-
-Since gradient boosing is hard to intepretate, we cannot directly use calculators to obtain house price of first observation in both train and test datasets.Instead, we used R function to calculate them. 
-
-For first observation in the training dataset:
-```{r}
+# training dataset
 pred.training.xgboost <- predict(house.xgboost, transform_data(ames_train), missing=NA)
-Yhat = exp(pred.training.xgboost)
-Yhat[1]
-```
-
-For first observation in the test dataset:
-```{r}
-pred.training.xgboost <- predict(house.xgboost, transform_data(ames_test), missing=NA)
-Yhat = exp(pred.training.xgboost)
-Yhat[1]
+Yhat.train = exp(pred.training.xgboost)
 ```
 
 3. Results
 
+```{r}
+diff =  ames_train$price - Yhat.train
+
+```
 
 ## Part III: Write Up
 
