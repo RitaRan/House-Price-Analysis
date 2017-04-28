@@ -94,41 +94,71 @@ library(caret)
 set.seed(1)
 load("ames_train.Rdata")
 ames_train = clean_data(ames_train)
+ames_train= ames_train[,c("MS.SubClass","MS.Zoning","Lot.Area","Lot.Shape","Neighborhood","House.Style","Overall.Qual","Overall.Cond","Exterior.1st","Year.Remod.Add","Mas.Vnr.Area","Exter.Qual","Foundation","Bsmt.Qual","BsmtFin.Type.1","BsmtFin.SF.1","Bsmt.Unf.SF","Heating.QC","X2nd.Flr.SF","X1st.Flr.SF","Full.Bath","Half.Bath","Bedroom.AbvGr","Kitchen.AbvGr","Kitchen.Qual","Fireplace.Qu","Bsmt.Exposure","Garage.Type", "Wood.Deck.SF","price","Year.Built","Open.Porch.SF","Mas.Vnr.Type","Garage.Area","Garage.Finish",'TotalSq','Condition.1',"Central.Air")]
+num = ames_train[,sapply(ames_train, is.numeric)]
+ggpairs(num[,1:10])
+
+
 keep_col = c("MS.SubClass","MS.Zoning","Lot.Area","Lot.Shape","Neighborhood","House.Style","Overall.Qual","Overall.Cond","Year.Built","Year.Remod.Add","Roof.Style","Exterior.1st","Exterior.2nd","Mas.Vnr.Type","Mas.Vnr.Area","Exter.Qual","Foundation","Bsmt.Qual","Bsmt.Exposure","BsmtFin.Type.1","BsmtFin.SF.1","Bsmt.Unf.SF","Heating.QC","X1st.Flr.SF","X2nd.Flr.SF","Bsmt.Full.Bath","Full.Bath","Half.Bath","Bedroom.AbvGr","Kitchen.AbvGr","Kitchen.Qual","Fireplaces","Fireplace.Qu","Garage.Type","Garage.Finish","Garage.Area","Wood.Deck.SF", "Open.Porch.SF","price")   
 keep_idx = which(colnames(ames_train) %in% keep_col)
-ames_train = ames_train[,keep_idx]
-
-
+ames_train = ames_train[,keep_idx]"House.Style""Exterior.2nd""Mas.Vnr.Type""Mas.Vnr.Area""Bedroom.AbvGr""Fireplaces""Garage.Type","Garage.Finish"
 
 ames_train = ames_train[ames_train$price<500000,]
 ames_train = ames_train[ames_train$X1st.Flr.SF<3500,]
 remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
 remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
 remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
+
+ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 #remove_idx4 = c(1:nrow(ames_train))[ames_train$Year.Built<1900&ames_train$price>250000]
 #remove_idx4 = c(1:nrow(ames_train))[ames_train$Lot.Area>30000]
-ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 
+model1 = lm(price ~., data = ames_train)
+model1 = lm(price ~  log(Lot.Area) + 
+    Lot.Shape + Neighborhood + Overall.Qual + Overall.Cond + 
+    Year.Built + Year.Remod.Add + Roof.Style + Exterior.1st + 
+    Exter.Qual + Foundation + Bsmt.Qual + Bsmt.Exposure + BsmtFin.SF.1 + 
+    Bsmt.Unf.SF + Heating.QC + X1st.Flr.SF + X2nd.Flr.SF +  
+      Full.Bath + Half.Bath + Kitchen.AbvGr + Kitchen.Qual + Fireplace.Qu + 
+    Garage.Area + Wood.Deck.SF + Open.Porch.SF + House.Style + Exterior.2nd + Mas.Vnr.Type + Mas.Vnr.Area + Bedroom.AbvGr + Fireplaces + Garage.Type + Garage.Finish + BsmtFin.Type.1, data=ames_train)
+Yhat = predict(model1, newdata=ames_test, interval = "pred")
+Yhat = exp(Yhat)
+rmse(Yhat[,1],ames_test$price)
+boxcox(model1)
+plot(model1)
+which(cooks.distance(model1) >= 1)
 
-model1 = lm(log(price) ~., ames_train)
-#test on train data
-keep_col = c("MS.SubClass","MS.Zoning","Lot.Area","Lot.Shape","Neighborhood","House.Style","Overall.Qual","Overall.Cond","Year.Built","Year.Remod.Add","Roof.Style","Exterior.1st","Exterior.2nd","Mas.Vnr.Type","Mas.Vnr.Area","Exter.Qual","Foundation","Bsmt.Qual","Bsmt.Exposure","BsmtFin.Type.1","BsmtFin.SF.1","Bsmt.Unf.SF","Heating.QC","X1st.Flr.SF","X2nd.Flr.SF","Bsmt.Full.Bath","Full.Bath","Half.Bath","Bedroom.AbvGr","Kitchen.AbvGr","Kitchen.Qual","Fireplaces","Fireplace.Qu","Garage.Type","Garage.Finish","Garage.Area","Wood.Deck.SF", "Open.Porch.SF","price")  
-model1 = lm(price^(0.25) ~ X1st.Flr.SF*Neighborhood + poly(Year.Built,3) + Year.Remod.Add +  Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond + Heating.QC, data=ames_train.train)
+model1 = lm(price^(0.25) ~ TotalSq*Neighborhood + poly(Year.Built,3) + Year.Remod.Add +  Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + Garage.Cond + Heating.QC, data=ames_train.train)
 Yhat = predict(model1, newdata=ames_train.test, interval = "pred")
 Yhat = Yhat^4
 rmse(Yhat[,1],ames_train.test$price)
 
+Yhat = predict(model1, newdata=ames_train.test, interval = "pred")
+Yhat = Yhat^4
+rmse(Yhat[,1],ames_train.test$price)
+
+#=========
+model1 = lm(price^(0.25) ~ TotalSq*Neighborhood + poly(Year.Built,3) + 
+              Year.Remod.Add +  Garage.Area + Overall.Qual +  log(Lot.Area) +
+              BsmtFin.SF.1 + Overall.Cond + Central.Air + 
+              Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + 
+              Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + 
+              Garage.Cond + Heating.QC, data=ames_train)
+Yhat = predict(model1, newdata=ames_train.test, interval = "pred")
+Yhat = Yhat^4
+rmse(Yhat[,1],ames_train.test$price)
+#========
 
 # test on test data
 load("ames_test.Rdata")
 ames_test = clean_data(ames_test)
 Yhat = predict(model1, newdata=ames_test, interval = "pred")
-Yhat = Yhat^4
+Yhat = exp(Yhat)
 rmse(Yhat[,1],ames_test$price)
 
 model1 = lm(price^(0.25) ~ area + Year.Built^2 + Year.Remod.Add + Garage.Area  + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Garage.Area + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
 
-summary(model)
+summary(model1)
 plot(model1)
 
 plot(ames_train$area,ames_train$price)
@@ -151,8 +181,8 @@ lm(formula = price^(0.25) ~ area + Year.Built + Year.Remod.Add +
 
 model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Cars + Overall.Qual +  Lot.Area + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Bldg.Type + Bsmt.Qual + Garage.Area + Enclosed.Porch + Garage.Cond + Neighborhood, data=ames_train[,-1])
 
-#model1 = lm(log(price) ~ 1, data = ames_train[,-1])
-biggest = formula(lm(log(price) ~ ., data = ames_train[,-1]))
+model1 = lm(log(price) ~ ., data = ames_train)
+biggest = formula(lm(log(price) ~ ., data = ames_train))
 bestforward = step(model1, k=2, direction = "forward", scope = biggest, trace = FALSE)
 model1 = bestforward
 summary(bestforward)
