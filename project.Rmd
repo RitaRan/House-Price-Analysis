@@ -55,22 +55,18 @@ ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
 We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots show below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found `price` needs a log transformation. 
 
 * Model build and model selection:
-We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. Finally we end up with a model with 20 variables.
+We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as TotalSq an area. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.$$\\\\$$
 
-* Further improvement:
-What we did for further imporvement is plotting individual price vs. the selected features. Log transformation is used on `Lot.Area`. We also double checked the boxcox plot on the updataed model. `price`^0.25 was used to replace the log transformation. We finally end up with a model with a rmse 15453.41.
+We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads our to our final initial model. 
 
-```{r}
-simple_model = lm(price ~ TotalSq, data = ames_train)
-par(mfrow = c(2,2)); plot(simple_model)
-```
+Based on the summary table of the selected model, all the selected continuous variables are extremely significant. These continuous variables include `area`, `Year.Built`, `Year.Remod.Add`, `Garage.Area`, `Overall.Qual`, `Lot.Area`, `BsmtFin.SF.1`, `Overall.Cond`, `Total.Bsmt.SF`, `Bsmt.Full.Bath` and `Screen.Porch`. Additionally, some categorical variables having a lot of significant levels are selected, such as `Neighborhood`, `Kitchen.Qual`, `Exter.Qual`.$$\\\\$$
 
-```{r}
-boxcox(simple_model)
-```
+Explanation of coeficients:
+
+a. Area is the most significant continuous variable in the model with a coefficient of 1.373e-03, which indicates when the other conditions stay the same, one unit increase in area leads to exp(2.702e-04)=1.0002 times of original price. The reason for having such a small increasing ratio is that the 1.0002 times a price with a large magnitude can still lead to a big increment.  
+b. Kichen.Qual if the most significant categorical variable. The base case is level "Ex". Level "Gd" has a coefficient of -5.298e-02, which means properties with a good quality kitchen have prices exp(-5.298e-02)=0.948 times of the prices of properties with an excellent quality kitchen. Level "TA" and "Fa" have lower ratios 0.9296 and 0.9218 respectively, which indicates properties with a better kitchen will have a higher price. 
 
 The full R code and analysis is shown below.
-
 ```{r}
 # clean data
 clean_data = function(xdata){
@@ -138,14 +134,46 @@ xdata %>%
 
 # remove outliers
 ames_train = clean_data(ames_train)
-ames_train = ames_train[ames_train$price<580000,-1]
+ames_train = ames_train[ames_train$price<500000,-1]
 remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
 remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
 remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
 ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
+```
 
-# fit model
-model1 = lm(price^(0.25) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Enclosed.Porch + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
+```{r}
+simple_model = lm(price ~ area, data = ames_train)
+par(mfrow = c(2,2)); plot(simple_model)
+```
+
+```{r}
+boxcox(simple_model)
+```
+
+```{r}
+# fit base model and compare
+base = lm(log(price) ~ X1st.Flr.SF + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood, data=ames_train)
+summary(base)
+par(mfrow = c(2,2));plot(base)
+
+base1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood + log(Lot.Area) , data=ames_train)
+
+base2 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood + log(Lot.Area) + BsmtFin.SF.1, data=ames_train)
+
+base3 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood + log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond , data=ames_train)
+
+base4 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood + log(Lot.Area) + BsmtFin.SF.1 +  Overall.Cond + Total.Bsmt.SF, data=ames_train)
+
+base5 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood + log(Lot.Area) + BsmtFin.SF.1 +  Overall.Cond + Total.Bsmt.SF + Central.Air, data=ames_train)
+
+model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood +log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch  + Exter.Qual + Bldg.Type + Bsmt.Qual + Garage.Cond  + Heating.QC, data=ames_train)
+
+anova(base, base1, base2, base3, base4, base5, model1)
+
+# final model
+ames_train = ames_train[-c(167,460,183),]
+model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood +log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch  + Exter.Qual + Bldg.Type + Bsmt.Qual + Garage.Cond  + Heating.QC, data=ames_train)
+summary(model1)
 par(mfrow = c(2,2));plot(model1)
 ```
 
@@ -163,7 +191,7 @@ ames_test = clean_data(ames_test)
 # prediction
 Yhat1 = predict(model1, newdata=ames_test, interval = "pred")
 # change back to original units
-Yhat1 = Yhat1^4
+Yhat1 = exp(Yhat1)
 ```
 
 You should save your predictions in a dataframe with columns for `PID`  (property identifier), `fit`, predicted values on the test data, and where possible `lwr` and `upr`, lower and upper 95% interval estimates for predicting `price`. 

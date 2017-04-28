@@ -151,7 +151,8 @@ xdata %>%
 
 # remove outliers
 ames_train = clean_data(ames_train)
-ames_train = ames_train[ames_train$price<580000,-1]
+ames_train = ames_train[-c(462,168,183),]
+ames_train = ames_train[ames_train$price<500000,-1]
 remove_idx1 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Gilbert")&ames_train$price>350000]
 remove_idx2 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("NAmes")&ames_train$price>300000]
 remove_idx3 = c(1:nrow(ames_train))[ames_train$Neighborhood %in%c("Landmrk","GrnHill")]
@@ -164,13 +165,12 @@ We first putted in a few variables that are intuitively important as our base mo
 
 Based on the summary table of the selected model, all the selected continuous variables are extremely significant. These continuous variables include `area`, `Year.Built`, `Year.Remod.Add`, `Garage.Area`, `Overall.Qual`, `Lot.Area`, `BsmtFin.SF.1`, `Overall.Cond`, `Total.Bsmt.SF`, `Bsmt.Full.Bath` and `Screen.Porch`. Additionally, some categorical variables having a lot of significant levels are selected, such as `Neighborhood`, `Kitchen.Qual`, `Exter.Qual`.$$\\\\$$
 
-Explanation of coeeficients:
+Explanation of coeficients:
 
-a. Area is the most significant continuous variable in the model with a coefficient of 1.373e-03, which indicates when the other conditions stay the same, one unit increase in area leads to exp(2.702e-04)=1.0002 times of original price. The reason for having such a small increasing ratio is that the 1.0002 times a price with a large magnitude can still lead to a big increment.  
+a. Area is the most significant continuous variable in the model with a coefficient of 1.373e-03, which indicates when the other conditions stay the same, one unit increase in area leads to exp(2.707e-04)=1.0002 times of original price. The reason for having such a small increasing ratio is that the 1.0002 times a price with a large magnitude can still lead to a big increment.  
 b. Kichen.Qual if the most significant categorical variable. The base case is level "Ex". Level "Gd" has a coefficient of -5.298e-02, which means properties with a good quality kitchen have prices exp(-5.298e-02)=0.948 times of the prices of properties with an excellent quality kitchen. Level "TA" and "Fa" have lower ratios 0.9296 and 0.9218 respectively, which indicates properties with a better kitchen will have a higher price. 
 
 ```{r}
-ames_train = ames_train[-c(462,168,183),]
 model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual +  log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + Bldg.Type + Bsmt.Qual + Garage.Cond + Neighborhood + Heating.QC, data=ames_train)
 summary(model1)
 ```
@@ -202,22 +202,27 @@ anova(base,base1,base2, base3, base4, base5, model1)
 The residual plots shows no non-constant variance, and the qq-plot shows a good normality of the redisuals except for a few potential outliers.
 
 ```{r}
-ames_train = ames_train[-c(182,1083),]
 plot(model1)
 ```
 
 * RMSE: must include an RMSE and an explanation  (other criteria desirable)
 
+Since log transformation was used on `price`, it needs to be transformed back to the original scale. Compared to the rmse of the base model, the rmse get improved prominently. 
+
 ```{r}
 rmse = function(pred,y){
   sqrt(mean((pred-y)^2))
 }
+base_Yhat = predict(base, newdata=ames_test, interval = "pred")
+base_Yhat = exp(base_Yhat)
 Yhat = predict(model1, newdata=ames_test, interval = "pred")
 Yhat = exp(Yhat)
-rmse(Yhat[,1],ames_test$price)
+c(rmse(base_Yhat[,1],ames_test$price),rmse(Yhat[,1],ames_test$price))
 ```
 
 * Model testing: must include an explanation
+
+
 
 ### Complex Model
 
