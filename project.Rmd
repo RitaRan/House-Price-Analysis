@@ -243,7 +243,7 @@ We selected a subgroup of variables out of all the predictors by the following c
 * Some variables have a large proportion of missing values. For instance, `Alley` has 1395 missing values, consisting of 93% of the training data. We remove these variables since they are noninformative and may cause damage to our models.
 * There is also multicolinearity in the training data. For example, `area` and `TotalSq` have a correlation around 0.99. Since To avoid multicolinearity, we will not consider `area` in our models. 
 
-After removing imbalanced, missing, and correlated variables, we ended up with 38 predictors. We built our models based on these predictors. 
+After removing imbalanced, missing, and correlated variables, we ended up with 37 predictors. We built our models based on these predictors. 
 
 2. Data Transformation 
 Based on the density plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
