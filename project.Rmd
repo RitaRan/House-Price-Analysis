@@ -20,6 +20,7 @@ library(e1071)
 In the first model you are allowed only limited manipulations of the original data set to predict the sales price `price`. You are allowed to take power transformations of the original variables [square roots, logs, inverses, squares, etc.] but you are NOT allowed to create interaction variables. This means that a variable may only be used once in an equation [if you use $ x^2$ don’t use $x$]. Additionally, you may eliminate any data points you deem unfit. This model should have a minimum r-square of 73% (in the original units) and contain at least 6 variables but fewer than 20.   
 ```{r read-data}
 load("ames_train.Rdata")
+
 ```
 
 
@@ -255,6 +256,8 @@ Then, we need to convert qualitative predictors to dummy variables in order to u
 # reload data 
 load("ames_train.Rdata")
 load("ames_test.Rdata")
+train_PID = ames_train$PID
+test_PID = ames_test$PID
 ```
 
 ```{r}
@@ -418,9 +421,21 @@ save(predictions, file="predict.Rdata")
 ```
 
 ### Model Evaluation
-1. Evaluation
+1. Model Evaluation
+For our complex model, we plotted residuals against fitted values. All the residuals clound around zero with no particular patterns, so our model does a decent job. 
+```{r}
+# training dataset
+pred.training.xgboost <- predict(house.xgboost, transform_data(ames_train), missing=NA)
+Yhat.train = exp(pred.training.xgboost)
+# residual plot
+residul = ames_train$price - Yhat.train
+qplot(x = Yhat.train, y = residul) +
+  theme_bw()+
+  xlab("Fitted Values")+
+  ylab("Residual")
+```
 
-We checked the model using by the following criteria. Coverage is not available for boosting. The results of both the simple model and the complex model are shown in the table below.  
+We also checked the model using the following criteria. Coverage is not available for boosting. The results of both the simple model and the complex model are shown in the table below.  
 
 ```{r}
 rmse2 = rmse(Yhat2, ames_test$price)
@@ -431,26 +446,47 @@ meanDeviation2 = meanDeviation(Yhat2, ames_test$price)
 res = data.frame(rmse = c(rmse1, rmse2),
                  bias = c(bias1, bias2),
                  maxDeviation = c(maxDeviation1, maxDeviation2),
-                 meanDeviation = c(meanDeviation1, meanDeviation2)
+                 meanDeviation = c(meanDeviation1, meanDeviation2),
+                 coverage = c(coverage1, NA)
                  )
 rownames(res) = c("simple model", "complex model")
 kable(res)
 ```
 
 2. Model Checking
+Since gradient boosing is hard to compute by hand, we cannot directly use calculators to obtain house price of first observation in both train and test datasets. Instead, we used R function to calculate them. For first observation in the training data, the prediction is 143400, which is a bit greater than the true value 137000. For the training data, the first prediction is 194059, close to the true value 192100. 
 
-Since gradient boosing is hard to compute by hand, we cannot directly use calculators to obtain house price of first observation in both train and test datasets.Instead, we used R function to calculate them. For first observation in the training data, the prediction is 143400, which is a bit greater than the true value 137000. For the training data, the first prediction is 194059, close to the true value 192100. 
-
+3. Model Results
+Top 10 undervalued and overvalued houses are shown in the tables below. The most undervalued house is the one with parcel ID 528102010. We may invest in this house and sell it after the price rises. The most overvalued house is the one with parcel ID 921128020. We may sell this house now since its value may drop in the future. 
 ```{r}
-# training dataset
-pred.training.xgboost <- predict(house.xgboost, transform_data(ames_train), missing=NA)
-Yhat.train = exp(pred.training.xgboost)
+residual = Yhat2 - ames_test$price
+ntest = dim(ames_test)[1]
+nleft = ntest - 10
+
+least_over = sort(residual, partial=nleft)[nleft]
+id1 = which(residual > least_over)
+df1 = data.frame(
+  PID = test_PID[id1],
+  Predicted.Value = Yhat2[id1],
+  Real.Value = ames_test$price[id1],
+  Difference = residual[id1]
+)
+kable(df1, caption = "Undervalued Houses")
 ```
 
-3. Results
 
 ```{r}
-diff =  ames_train$price - Yhat.train
+residual = ames_test$price - Yhat2
+ntest = dim(ames_test)[1]
+nleft = ntest - 10
+id2 = which(residual > least_over)
+df2 = data.frame(
+  PID = test_PID[id2],
+  Predicted.Value = Yhat2[id2],
+  Real.Value = ames_test$price[id2],
+  Difference = -residual[id2]
+)
+kable(df2, caption = "Overvalued Houses")
 ```
 
 ## Part III: Write Up
