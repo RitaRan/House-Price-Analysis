@@ -67,7 +67,7 @@ ggplot(ames_train, aes(x=Year.Built, y=price,alpha = 0.5))+
 # Neighborhood and TotalSq
 ames_train %>%
   filter(Neighborhood=="OldTown" |Neighborhood=="NridgHt"|
-           Neighborhood=="IDOTRR"|Neighborhood=="Veenker") %>%
+           Neighborhood=="NWAmes"|Neighborhood=="StoneBr") %>%
   ggplot(aes(x=TotalSq, y=price))+
   geom_point(col="dark blue", cex=1, alpha=0.5)+
   facet_wrap(~Neighborhood)+
