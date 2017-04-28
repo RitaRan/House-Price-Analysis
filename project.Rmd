@@ -493,10 +493,9 @@ Once you are satisfied with your model, provide a write up of your data analysis
 
 5. Conclusion (10 points): must include a summary of results and a discussion of things learned
 
-```{r}
+The whole project is aimed at predicting prices of properties in Ames area. Based on the explanations in the codebook, we cleaned the NAs by creating new levels and then fitted a linear model as our initial model with the help of forward selection. In the process of improving our model by forward selection, we found it always included some variables with problem of colinearity. Thus before we fit our complex model, we decided to first remove the problemtic variables. The problemetic variables include variables with few unique values, variables with possible colinearity, and variables with a lot of NAs. We also identified a few continuous variables needing log transformations. Using these transformed and selected variables, we decided to use booting on linear model. The result given by booting model highly improved the prediction accuracy. After satisfied with our further pruned model, we finally predicted the properties that are overvalued and undervalued.
 
-```
-
+When the number of predictors is very large, cleaning data and removing the redundant variables by reasoning is the most crucial step for making a good prediction, and it is even more important than finding a good model, because we found that forward selcetion in such circumstance is not able to deal with the problem of colinearity well, and the accuracy of different models do not have much difference. We found removing outliers is also important for making a good prediction and improving the accuracy. Booting is always a good model to try when we want to further imporve our model.
 
 ## Part IV
 Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
