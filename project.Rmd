@@ -493,8 +493,6 @@ Once you are satisfied with your model, provide a write up of your data analysis
 
 5. Conclusion (10 points): must include a summary of results and a discussion of things learned
 
-
-
 ## Part IV
 Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
 This should have the same format as the models in Part I and II.
