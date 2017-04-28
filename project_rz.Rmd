@@ -94,6 +94,7 @@ library(caret)
 set.seed(1)
 load("ames_train.Rdata")
 ames_train = clean_data(ames_train)
+ames_train = ames_train[-c(462,168),]
 ames_train= ames_train[,c("MS.SubClass","MS.Zoning","Lot.Area","Lot.Shape","Neighborhood","House.Style","Overall.Qual","Overall.Cond","Exterior.1st","Year.Remod.Add","Mas.Vnr.Area","Exter.Qual","Foundation","Bsmt.Qual","BsmtFin.Type.1","BsmtFin.SF.1","Bsmt.Unf.SF","Heating.QC","X2nd.Flr.SF","X1st.Flr.SF","Full.Bath","Half.Bath","Bedroom.AbvGr","Kitchen.AbvGr","Kitchen.Qual","Fireplace.Qu","Bsmt.Exposure","Garage.Type", "Wood.Deck.SF","price","Year.Built","Open.Porch.SF","Mas.Vnr.Type","Garage.Area","Garage.Finish",'TotalSq','Condition.1',"Central.Air")]
 num = ames_train[,sapply(ames_train, is.numeric)]
 ggpairs(num[,1:10])
@@ -113,7 +114,7 @@ ames_train = ames_train[-c(remove_idx1, remove_idx2, remove_idx3),]
 #remove_idx4 = c(1:nrow(ames_train))[ames_train$Year.Built<1900&ames_train$price>250000]
 #remove_idx4 = c(1:nrow(ames_train))[ames_train$Lot.Area>30000]
 
-model1 = lm(price ~., data = ames_train)
+model1 = lm(log(price) ~., data = ames_train)
 model1 = lm(price ~  log(Lot.Area) + 
     Lot.Shape + Neighborhood + Overall.Qual + Overall.Cond + 
     Year.Built + Year.Remod.Add + Roof.Style + Exterior.1st + 
@@ -144,9 +145,9 @@ model1 = lm(price^(0.25) ~ TotalSq*Neighborhood + poly(Year.Built,3) +
               Bsmt.Full.Bath + Screen.Porch + Kitchen.Qual + Exter.Qual + 
               Bldg.Type + Bsmt.Qual + Enclosed.Porch.is*Enclosed.Porch + 
               Garage.Cond + Heating.QC, data=ames_train)
-Yhat = predict(model1, newdata=ames_train.test, interval = "pred")
+Yhat = predict(model1, newdata=ames_test, interval = "pred")
 Yhat = Yhat^4
-rmse(Yhat[,1],ames_train.test$price)
+rmse(Yhat[,1],ames_test$price)
 #========
 
 # test on test data
@@ -162,8 +163,9 @@ summary(model1)
 plot(model1)
 
 plot(ames_train$area,ames_train$price)
+```
 
-
+```{r}
 #Call:
 lm(formula = price^(0.25) ~ area + Year.Built + Year.Remod.Add + 
     Garage.Area + Overall.Qual + Lot.Area + BsmtFin.SF.1 + Overall.Cond + 
