@@ -535,9 +535,18 @@ When the number of predictors is very large, cleaning data and removing the redu
 
 ## Part IV
 Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
-This should have the same format as the models in Part I and II.
+This should have the same format as the models in Part I and II. 10 points
 
-10 points
+```{r, echo=FALSE}
+load("ames_validation.Rdata")
+pid_validation = ames_validation$PID
+ames_validation = clean_data(ames_validation)%>% select(-PID)
+ames_validation = ames_validation %>% mutate(price = as.numeric(price))
+Yhat<- exp(predict(house.xgboost, transform_data(ames_validation), missing=NA))
+predictions = as.data.frame(Yhat)
+predictions$PID = pid_validation
+save(predictions, file="prediction-validation.Rdata" )
+```
 
 ## Class Presentations
 
