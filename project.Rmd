@@ -6,6 +6,7 @@ output: html_document
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
 library(dplyr)
 library(ggplot2)
 library(knitr)
@@ -240,9 +241,9 @@ After removing imbalanced, missing, and correlated variables, we ended up with 4
 
 2. Data Transformation 
 
-a. log transformation: based on the histogram plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
-b. polynomial relationships: base on the plots of price vs. some of the features, we found `Year.Built` and `Year.Remod.Add` have non-linear relationships with price. We add polynomial terms on these two variables.
-c. factorize continuous variables: some continuous variables are discrete with less than 20 levels and their relationships with price are not directly linear, such as `MS.SubClass` `Overall.Cond`, we decided to factorize those variables instead of keeping them as numeric values.
+a. Log transformation: based on the histogram plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
+b. Polynomial relationships: base on the plots of price vs. some of the features, we found `Year.Built` and `Year.Remod.Add` have non-linear relationships with price. We add polynomial terms on these two variables.
+c. Factorize continuous variables: some continuous variables are discrete with less than 20 levels and their relationships with price are not directly linear, such as `MS.SubClass` `Overall.Cond`, we decided to factorize those variables instead of keeping them as numeric values.
 
 3. Interactions
 
@@ -282,7 +283,6 @@ save(predictions, file="predict.Rdata")
 1. Model Diagnostics 
 For our complex model, we plotted residuals against fitted values. All the residuals clound around zero with no particular patterns, so our model does a decent job. 
 ```{r}
-
 # residual plot
 residul = ames_train$price - Yhat.train[,'fit']
 qplot(x = Yhat.train[,'fit'], y = residul) +
@@ -370,9 +370,6 @@ Once you are satisfied with your model, provide a write up of your data analysis
 3. Development of the final model (20 points)
 
 * Final model: must include a summary table
-```{r}
-
-```
 
 * Variables: must include an explanation
 
