@@ -217,13 +217,13 @@ base5 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area
            + Overall.Qual + Kitchen.Qual + Neighborhood + log(Lot.Area) + 
              BsmtFin.SF.1 +  Overall.Cond + Total.Bsmt.SF + Central.Air, data=ames_train)
 
-model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + 
+model = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + 
               Overall.Qual + Kitchen.Qual + Neighborhood +log(Lot.Area) + 
               BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + 
               Bsmt.Full.Bath + Screen.Porch  + Exter.Qual + Bldg.Type + 
               Bsmt.Qual + Garage.Cond  + Heating.QC, data=ames_train)
 
-kable(anova(base,base1,base2, base3, base4, base5, model1), caption = "ANOVA")
+kable(anova(base,base1,base2, base3, base4, base5, model), caption = "ANOVA")
 ```
 
 #### Residual Diagnostics
@@ -240,7 +240,7 @@ Since log transformation was used on `price`, it needs to be transformed back to
 
 ```{r}
 ames_test = clean_data(ames_test)
-Yhat1 = predict(base, newdata=ames_test, interval = "pred")
+Yhat1 = predict(model, newdata=ames_test, interval = "pred")
 Yhat1 = exp(Yhat1)
 # test criteria 
 rmse = function(y, yhat){
@@ -363,7 +363,7 @@ res = data.frame(rmse = c(rmse1, rmse2),
                  meanDeviation = c(meanDeviation1, meanDeviation2),
                  coverage = c(coverage1, coverage2)
                  )
-rownames(res) = c("simple model", "complex model")
+rownames(res) = c("initial model", "complex model")
 kable(res, caption = "Model Accuracy")
 ```
 
