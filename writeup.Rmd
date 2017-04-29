@@ -312,15 +312,11 @@ model1 = lm(log(price) ~  log(TotalSq)*(Neighborhood + House.Style +
 ```
 
 
-```{r}
+```{r, warning=F}
 Yhat.test = predict(model1, newdata=ames_test, interval = "pred")
 Yhat.test = exp(Yhat.test)
 Yhat.train = predict(model1, newdata=ames_train, interval = "pred")
 Yhat.train = exp(Yhat.train)
-
-predictions = as.data.frame(Yhat.test)
-predictions$PID = ames_test$PID
-save(predictions, file="predict.Rdata")
 ```
 
 #### Model Summary
@@ -330,13 +326,16 @@ Summary table of the complex model:
 summaries = summary(model1)
 df = summaries$coefficients[c("(Intercept)","log(Lot.Area)",
                               "poly(Year.Built, 3)1","poly(Year.Built, 3)2",
-                         "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1",
-                         "poly(Year.Remod.Add,2)2","Bsmt.ExposureGd",
-                         "Bsmt.ExposureMn","Bsmt.Full.Bath","Bsmt.Unf.SF",
-                         "StreetPave","Full.Bath","Half.Bath","Wood.Deck.SF",
-                         "log(Open.Porch.SF + 1)","log(Screen.Porch + 1)"),]
+                              "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1",
+                              "poly(Year.Remod.Add, 2)2",
+                          "Bsmt.ExposureGd","Bsmt.ExposureMn",
+                          "Bsmt.Full.Bath","Bsmt.Unf.SF",
+                          "StreetPave","Full.Bath","Half.Bath",
+                          "Wood.Deck.SF","log(Open.Porch.SF + 1)",
+                          "log(Screen.Porch + 1)"),]
 kable(df, caption = "Model Summary")
 ```
+
 We picked 41 features and fit a simple linear regression model. Among them we picked some whose p-value are most significant as the table shows above.  We can conclude that area of the lot, the year to build, the year to renew, basement and bathroom conditions and etc. all play key roles in determining house prices. 
 
 Furthermore, we investigated that the lot area and house prices are postively correlated: 10 percent increase in lot area will lead to $1.1^{6.975125} -1$ (around 90 percent) increase in price. Moreover, we found out that bathroom conditions and area of wood deck, open porch and screen porch all have positive correlation with price. a 1-unit increase in the area of wood deck leads to $e^{0.1262579}$ (around 1.134575) increase in price. Last but not least, 10 percent increase in areas of open porch and screen porch will lead to $1.1^{0.0038} -1$ (around 0.03 percent) and $1.1^{0.0062} -1$ (around 0.05 percent) increase in house prices respectively.
@@ -345,7 +344,7 @@ Furthermore, we investigated that the lot area and house prices are postively co
 1. Residual Diagnostics
 
 For our complex model, residuals cloud around zero with no particular patterns. There are also no points with high leverage or large Cook's distance. The only issue is that we may still have heavy tails, indicating potential outliers.  
-```{r}
+```{r, warning=F}
 par(mfrow = c(2,2)); plot(model1)
 ```
 
@@ -365,19 +364,20 @@ res = data.frame(rmse = c(rmse1, rmse2),
                  coverage = c(coverage1, coverage2)
                  )
 rownames(res) = c("simple model", "complex model")
-kable(res)
+kable(res, caption = "Model Accuracy")
 ```
 
 2. Model Checking
+
 We can do model checking by using the selected features and interactions, model coefficients and intercept. The first observation in the training data, the prediction is 176547.7, which is higher than the true value 137000. For the testing data, the prediction is 190388.6, which is also close to the true value 192100.
 
 3. Model Results
+
 Top 10 undervalued and overvalued houses are shown in the tables below. The most undervalued house is the one with parcel ID 528102010. We may invest in this house and sell it after the price rises. The most overvalued house is the one with parcel ID 905376090. We may sell this house now since its value may drop in the future. 
 ```{r}
 residual = Yhat.test[,1] - ames_test$price
 ntest = dim(ames_test)[1]
 nleft = ntest - 10
-
 least_over = sort(residual, partial=nleft)[nleft]
 id1 = which(residual > least_over)
 df1 = data.frame(
@@ -394,6 +394,7 @@ kable(df1, caption = "Undervalued Houses")
 residual = ames_test$price - Yhat.test[,1]
 ntest = dim(ames_test)[1]
 nleft = ntest - 10
+least_over = sort(residual, partial=nleft)[nleft]
 id2 = which(residual > least_over)
 df2 = data.frame(
   PID = ames_test$PID[id2],

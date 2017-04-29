@@ -51,7 +51,7 @@ ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
 We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots showed below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found that `price` needs a log transformation. 
 
 * Model fitting and model selection:
-We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as `TotalSq` an `area`. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads us to our final initial model.$$\\\\$$ 
+We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as `TotalSq` an `area`. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads us to our final initial model.
 
 * Results and explanation of coeficients:
 Based on the summary table of the selected model, all the selected continuous variables are extremely significant. These continuous variables include `area`, `Year.Built`, `Year.Remod.Add`, `Garage.Area`, `Overall.Qual`, `Lot.Area`, `BsmtFin.SF.1`, `Overall.Cond`, `Total.Bsmt.SF`, `Bsmt.Full.Bath` and `Screen.Porch`. Additionally, some categorical variables having a lot of significant levels are selected, such as `Neighborhood`, `Kitchen.Qual`, `Exter.Qual`.$$\\\\$$
@@ -284,11 +284,13 @@ Summary table of the complex model:
 summaries = summary(model1)
 df = summaries$coefficients[c("(Intercept)","log(Lot.Area)",
                               "poly(Year.Built, 3)1","poly(Year.Built, 3)2",
-                         "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1",
-                         "poly(Year.Remod.Add,2)2","Bsmt.ExposureGd",
-                         "Bsmt.ExposureMn","Bsmt.Full.Bath","Bsmt.Unf.SF",
-                         "StreetPave","Full.Bath","Half.Bath","Wood.Deck.SF",
-                         "log(Open.Porch.SF + 1)","log(Screen.Porch + 1)"),]
+                              "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1",
+                              "poly(Year.Remod.Add, 2)2",
+                          "Bsmt.ExposureGd","Bsmt.ExposureMn",
+                          "Bsmt.Full.Bath","Bsmt.Unf.SF",
+                          "StreetPave","Full.Bath","Half.Bath",
+                          "Wood.Deck.SF","log(Open.Porch.SF + 1)",
+                          "log(Screen.Porch + 1)"),]
 kable(df, caption = "Model Summary")
 ```
 We picked 41 features and fit a simple linear regression model. Among them we picked some whose p-value are most significant as the table shows above.  We can conclude that area of the lot, the year to build, the year to renew, basement and bathroom conditions and etc. all play key roles in determining house prices. 
@@ -349,6 +351,7 @@ kable(df1, caption = "Undervalued Houses")
 residual = ames_test$price - Yhat.test[,1]
 ntest = dim(ames_test)[1]
 nleft = ntest - 10
+least_over = sort(residual, partial=nleft)[nleft]
 id2 = which(residual > least_over)
 df2 = data.frame(
   PID = ames_test$PID[id2],
