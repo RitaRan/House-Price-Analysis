@@ -46,15 +46,14 @@ ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
 
 ### Transform Data and Fit Model
 
-* Transforamtion of response variable `price`:
+* Transforamtion of the response variable `price`:
 We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots showed below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found that `price` needs a log transformation. 
 
 * Model fitting and model selection:
-We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as `TotalSq` an `area`. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads our to our final initial model.$$\\\\$$ 
+We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as `TotalSq` an `area`. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads us to our final initial model.$$\\\\$$ 
 
+* Results and explanation of coeficients:
 Based on the summary table of the selected model, all the selected continuous variables are extremely significant. These continuous variables include `area`, `Year.Built`, `Year.Remod.Add`, `Garage.Area`, `Overall.Qual`, `Lot.Area`, `BsmtFin.SF.1`, `Overall.Cond`, `Total.Bsmt.SF`, `Bsmt.Full.Bath` and `Screen.Porch`. Additionally, some categorical variables having a lot of significant levels are selected, such as `Neighborhood`, `Kitchen.Qual`, `Exter.Qual`.$$\\\\$$
-
-Explanation of coeficients:
 
 a. Area is the most significant continuous variable in the model with a coefficient of 1.373e-03, which indicates when the other conditions stay the same, one unit increase in area leads to exp(2.702e-04)=1.0002 times of original price. The reason for having such a small increasing ratio is that the 1.0002 times a price with a large magnitude can still lead to a big increment.  
 b. Kichen.Qual if the most significant categorical variable. The base case is level "Ex". Level "Gd" has a coefficient of -5.298e-02, which means properties with a good quality kitchen have prices exp(-5.298e-02)=0.948 times of the prices of properties with an excellent quality kitchen. Level "TA" and "Fa" have lower ratios 0.9296 and 0.9218 respectively, which indicates properties with a better kitchen will have a higher price. 
@@ -64,8 +63,11 @@ The full R code and analysis is shown below.
 # clean data
 clean_data = function(xdata){
 xdata %>%
-    mutate(Alley = as.factor(ifelse(is.na(as.character(Alley)), 
+    mutate(# replace NAs with new levels
+           Alley = as.factor(ifelse(is.na(as.character(Alley)), 
                                     "No alley access", as.character(Alley))),
+           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
+                                           "Fa", as.character(Bsmt.Qual))),
            Bsmt.Qual = as.factor(ifelse(is.na(as.character(Bsmt.Qual)), 
                                            "No Basement", as.character(Bsmt.Qual))),
            Bsmt.Cond = as.factor(ifelse(is.na(as.character(Bsmt.Cond)), 
@@ -80,10 +82,6 @@ xdata %>%
            Bsmt.Unf.Rate.SF = ifelse(Total.Bsmt.SF!=0, Bsmt.Unf.SF/Total.Bsmt.SF, 0),
            Bsmt.Full.Bath = ifelse(is.na(Bsmt.Full.Bath),0,Bsmt.Full.Bath),
            Bsmt.Half.Bath = ifelse(is.na(Bsmt.Half.Bath),0,Bsmt.Half.Bath),
-           #Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
-           #                             Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
-           #Bath = as.factor(ifelse(Half.Bath!=0,
-           #                             Full.Bath+0.5,Full.Bath)),
            Fireplace.Qu = as.factor(ifelse(is.na(as.character(Fireplace.Qu)), 
                                            "No Fireplace", as.character(Fireplace.Qu))),
            Garage.Type = as.factor(ifelse(is.na(as.character(Garage.Type)),
@@ -91,14 +89,16 @@ xdata %>%
            Garage.Finish = as.factor(ifelse(is.na(as.character(Garage.Finish))|
                                               as.character(Garage.Finish) == "",
                                            "No Garage", as.character(Garage.Finish))),
+           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
+                                          "Gd", as.character(Garage.Qual))),
            Garage.Qual = as.factor(ifelse(is.na(as.character(Garage.Qual)),
                                            "No Garage", as.character(Garage.Qual))),
            Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
                                           "Gd", as.character(Garage.Cond))),
-           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|as.character(Garage.Cond)=="Po",
+           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|
+                                            as.character(Garage.Cond)=="Po",
                                            "No Garage", as.character(Garage.Cond))),
-           Pool.Area = as.factor(ifelse(Pool.Area==0,
-                                           "N", "Y")),
+           # deal with new level issue in test data
            Fence = as.factor(ifelse(is.na(as.character(Fence)),
                                            "No Fence", as.character(Fence))),
            Misc.Feature = as.factor(ifelse(is.na(as.character(Misc.Feature)),
@@ -106,23 +106,21 @@ xdata %>%
            Mas.Vnr.Type = as.factor(ifelse(as.character(Mas.Vnr.Type) == "",
                                            "None", as.character(Mas.Vnr.Type))),
            Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
-           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
-                                  Garage.Yr.Blt),
            Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", 
                                            "Fa", as.character(Kitchen.Qual))),
            Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", 
                                          "Fa", as.character(Heating.QC))),
-           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
-           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
-                                          "Gd", as.character(Garage.Qual))),
            Electrical = as.factor(ifelse(as.character(Electrical) == "", 
                                          "SBrkr", as.character(Electrical))),
-           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
+           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in%
+                                            c("Artery","RRAn","RRAe"),
                                           "Feedr", as.character(Condition.2))),
-           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
-                                           "Fa", as.character(Bsmt.Qual))),
            Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
-                                          "NPkVill", as.character(Neighborhood)))
+                                          "NPkVill", as.character(Neighborhood))),
+           # create new variables
+           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
+           Pool.Area = as.factor(ifelse(Pool.Area==0,"N", "Y")),
+           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2, Garage.Yr.Blt)
           )%>%
     dplyr::select(-c(Lot.Frontage,Pool.QC,Pool.Area))
 }
