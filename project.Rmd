@@ -6,7 +6,6 @@ output: html_document
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(MASS)
 library(dplyr)
 library(ggplot2)
 library(knitr)
@@ -233,7 +232,7 @@ Update your predictions using your complex model to provide point estimates and 
 
 You may iterate here as much as you like exploring different models until you are satisfied with your results.
 
-### Data Cleaning
+### Model Fitting
 1. Variable Selection
 We selected a subgroup of variables out of all the predictors by the following criterion.
 
@@ -246,22 +245,22 @@ After removing imbalanced, missing, and correlated variables, we ended up with 3
 2. Data Transformation 
 Based on the density plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
 
-### Model Fitting
 We decided to use Gradient Boosting for linear regression to fit the data. We checked the data and splitted the training set into qualitative variables and quantitative variables. And we found out that among all qualitative ones, 12 have near zero variance, which indicate that the frequency of the most common value to the frequency of the second most common value is large. In this case, we deleted those variables. Among all quantitative variables, 8 have near zero variance, and thus we removed them. Since we only chose quantitaive variables which have no missing values,there is no need to do imputation. Here, we planned to use gibbs sampler and PCA to do imputation. Since imputation over qualitative variables introduces bias, we thus simply converted NAs into a new factor.
 Then, we need to convert qualitative predictors to dummy variables in order to use XGBoost model.
 ```{r}
-model1 = lm(log(price) ~  log(TotalSq)*(Neighborhood + House.Style + Exterior.2nd + Heating.QC + Kitchen.Qual) + 
-              Condition.1 + 
-              log(Lot.Area)*Lot.Shape + 
+model1 = lm(log(price) ~  log(TotalSq)*(Neighborhood + House.Style +
+                                          Exterior.2nd + Heating.QC + Kitchen.Qual) + 
+              Condition.1 + log(Lot.Area)*Lot.Shape + 
               factor(Overall.Qual) + factor(Overall.Cond) + factor(MS.SubClass)+
               poly(Year.Built,3) + poly(Year.Remod.Add,2) + 
-              Bsmt.Exposure + Bsmt.Qual + Bsmt.Full.Bath + BsmtFin.Type.1 + BsmtFin.SF.1 + Bsmt.Unf.SF  +  
+              Bsmt.Exposure + Bsmt.Qual + Bsmt.Full.Bath + BsmtFin.Type.1 + 
+              BsmtFin.SF.1 +Bsmt.Unf.SF  +  
               Garage.Type*(Garage.Area) + Garage.Finish + 
               Exterior.1st + Foundation + Functional + Street + 
               Bedroom.AbvGr + Full.Bath + Half.Bath + Kitchen.AbvGr +
               Fireplace.Qu + Fireplaces + Lot.Config + Fence + 
-              Wood.Deck.SF + log(Open.Porch.SF+1) + log(Screen.Porch+1) + Roof.Style +
-              Mas.Vnr.Type + Mas.Vnr.Area, data=ames_train)
+              Wood.Deck.SF + log(Open.Porch.SF+1) + log(Screen.Porch+1) +
+              Roof.Style + Mas.Vnr.Type + Mas.Vnr.Area, data=ames_train)
 ```
 
 
@@ -276,8 +275,10 @@ predictions$PID = ames_test$PID
 save(predictions, file="predict.Rdata")
 ```
 
+### Results Summary 
+
 ### Model Evaluation
-1. Model Evaluation
+1. Model Diagnostics 
 For our complex model, we plotted residuals against fitted values. All the residuals clound around zero with no particular patterns, so our model does a decent job. 
 ```{r}
 # training dataset
