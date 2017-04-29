@@ -6,9 +6,11 @@ output: html_document
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
 library(dplyr)
 library(ggplot2)
 library(knitr)
+library(MASS)
 ```
 
 ## Part I: Simple Model
@@ -201,7 +203,7 @@ meanDeviation = function(yhat, y){
   mean(abs(yhat-y))
 }
 coverage = function(y, lwr, upr){
-  mean(y>=lwr && y<=upr)
+  mean(y>=lwr & y<=upr)
 }
 # evaluation 
 rmse1 = rmse(Yhat1[,1], ames_test$price)
@@ -240,9 +242,9 @@ After removing imbalanced, missing, and correlated variables, we ended up with 4
 
 2. Data Transformation 
 
-a. log transformation: based on the histogram plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
-b. polynomial relationships: base on the plots of price vs. some of the features, we found `Year.Built` and `Year.Remod.Add` have non-linear relationships with price. We add polynomial terms on these two variables.
-c. factorize continuous variables: some continuous variables are discrete with less than 20 levels and their relationships with price are not directly linear, such as `MS.SubClass` `Overall.Cond`, we decided to factorize those variables instead of keeping them as numeric values.
+a. Log transformation: based on the histogram plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
+b. Polynomial relationships: base on the plots of price vs. some of the features, we found `Year.Built` and `Year.Remod.Add` have non-linear relationships with price. We add polynomial terms on these two variables.
+c. Factorize continuous variables: some continuous variables are discrete with less than 20 levels and their relationships with price are not directly linear, such as `MS.SubClass` `Overall.Cond`, we decided to factorize those variables instead of keeping them as numeric values.
 
 3. Interactions
 
@@ -278,11 +280,24 @@ save(predictions, file="predict.Rdata")
 
 ### Results Summary 
 
+Summary table of the complex model:
+```{r}
+summaries = summary(model1)
+df = summaries$coefficients[c("(Intercept)","log(Lot.Area)","poly(Year.Built, 3)1","poly(Year.Built, 3)2",
+                         "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1","poly(Year.Remod.Add, 2)2","Bsmt.ExposureGd","Bsmt.ExposureMn","Bsmt.Full.Bath","Bsmt.Unf.SF","StreetPave","Full.Bath","Half.Bath","Wood.Deck.SF","log(Open.Porch.SF + 1)","log(Screen.Porch + 1)"),]
+kable(df)
+```
+We picked 41 features and fit a simple linear regression model. Among them we picked some whose p-value are most significant as the table shows above.  We can conclude that area of the lot, the year to build, the year to renew, basement and bathroom conditions and etc. all play key roles in determining house prices. 
+Furthermore, we investigated that the lot area and house prices are postively correlated: 10 percent increase in lot area will lead to $1.1^{6.975125} -1$ (around 90 percent) increase in price. 
+Moreover, we found out that bathroom conditions and area of wood deck, open porch and screen porch all have positive 
+correlation with price. a 1-unit increase in the area of wood deck leads to $e^{0.1262579}$ (around 1.134575) increase in price. Last but not least, 10 percent increase in areas of open porch and screen porch will lead to $1.1^{0.0038} -1$ (around 0.03 percent) and $1.1^{0.0062} -1$ (around 0.05 percent) increase in house prices respectively.
+
+
+
 ### Model Evaluation
 1. Model Diagnostics 
 For our complex model, we plotted residuals against fitted values. All the residuals clound around zero with no particular patterns, so our model does a decent job. 
 ```{r}
-
 # residual plot
 residul = ames_train$price - Yhat.train[,'fit']
 qplot(x = Yhat.train[,'fit'], y = residul) +
@@ -370,9 +385,6 @@ Once you are satisfied with your model, provide a write up of your data analysis
 3. Development of the final model (20 points)
 
 * Final model: must include a summary table
-```{r}
-
-```
 
 * Variables: must include an explanation
 
@@ -393,22 +405,28 @@ Once you are satisfied with your model, provide a write up of your data analysis
 
 5. Conclusion (10 points): must include a summary of results and a discussion of things learned
 
-The whole project is aimed at predicting prices of properties in Ames area. Based on the explanations in the codebook, we cleaned the NAs by creating new levels and then fitted a linear model as our initial model with the help of forward selection. In the process of improving our model by forward selection, we found it always included some variables with problem of colinearity. Thus before we fit our complex model, we decided to first remove the problemtic variables. The problemetic variables include variables with few unique values, variables with possible colinearity, and variables with a lot of NAs. We also identified a few continuous variables needing log transformations. Using these transformed and selected variables, we decided to use booting on linear model. The result given by booting model highly improved the prediction accuracy. After satisfied with our further pruned model, we finally predicted the properties that are overvalued and undervalued.
+Our project aims to predict houses prices using the Ames data. Based on the explanations in the codebook, we imputed some variables with missing data by giving missing values reasonable meaning and eliminated outliers. After data cleaning, we first built a linear model with variables selected from forward selection. However, after further inverstigation into these variables, we found that some of them can be excluded in the first place. Highly correlated, serveraly imbalanced, and largely missing variables not only provide little information, but also cause damage to our model. Thus, after summarising and plotting variables, we handpicked 41 of them, excluding those problematic ones. 
 
-When the number of predictors is very large, cleaning data and removing the redundant variables by reasoning is the most crucial step for making a good prediction, and it is even more important than finding a good model, because we found that forward selcetion in such circumstance is not able to deal with the problem of colinearity well, and the accuracy of different models do not have much difference. We found removing outliers is also important for making a good prediction and improving the accuracy. Booting is always a good model to try when we want to further imporve our model.
+With these selected variables and their interactions, we built our complex model. We found that house prices are closely related to lot area, the year when the house was built and remodeled, the number of bathrooms, porch area, etc. For example, the larger the lot area, the higher the price. The more the full and half bathrooms, the higher the price. These significant variables help us to make better predictions of house prices. Our complex model does improve prediction accurarcy according to all the five evaluation criteria. With these predictions, we finally gave our suggestions on overvalued and undervalued hourses. 
+
+We actually learnt more than we expected when working on this project. We found that variable selection is extremely important when given a number of related and messy variables. Dealing with missing values and removing outliers are also crucial for a better prediction. We were also amazed at the power of ordinary linear models. In fact, in addition to ordinary linear models, we tried Bayesian linear models, panelized linear models, tree ensembles and GAM. The ordinary linear model outperform all these models because it is computationally cheap and also able to capture non-linearity and interactions.    
+
 
 ## Part IV
 Create predictions for the validation data from your final model and write out to a file `prediction-validation.Rdata`
 This should have the same format as the models in Part I and II. 10 points
 
 ```{r, echo=FALSE}
+# load and clean validation data 
 load("ames_validation.Rdata")
 pid_validation = ames_validation$PID
-ames_validation = clean_data(ames_validation)%>% select(-PID)
-ames_validation = ames_validation %>% mutate(price = as.numeric(price))
-Yhat<- exp(predict(house.xgboost, transform_data(ames_validation), missing=NA))
-predictions = as.data.frame(Yhat)
-predictions$PID = pid_validation
+ames_validation = clean_data(ames_validation)
+# predict on validation data 
+Yhat.val<- predict(model1, newdata = ames_validation, interval = "pred")
+Yhat.val = exp(Yhat.val)
+predictions = as.data.frame(Yhat.val)
+predictions$PID = ames_validation$PID
+# save predictions 
 save(predictions, file="prediction-validation.Rdata" )
 ```
 
