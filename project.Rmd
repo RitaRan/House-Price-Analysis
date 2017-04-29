@@ -305,6 +305,7 @@ par(mfrow = c(2,2)); plot(model1)
 
 We also checked the model using the following criteria. The results of both the simple model and the complex model are shown in the table below. The performace of complex model greatly improves model accuracy.  
 
+
 ```{r}
 rmse2 = rmse(Yhat.test[,'fit'], ames_test$price)
 bias2 = bias(Yhat.test[,'fit'], ames_test$price)
@@ -396,6 +397,48 @@ Once you are satisfied with your model, provide a write up of your data analysis
 * Model testing : must include a discussion
 
 * Model result: must include a selection of the top 10 undervalued and overvalued  houses
+
+### Residual
+All the residuals clound around zero with no particular patterns, so our model does a decent job. 
+```{r}
+# residual plot
+residul = ames_train$price - Yhat.train[,'fit']
+qplot(x = Yhat.train[,'fit'], y = residul) +
+  theme_bw()+
+  xlab("Fitted Values")+
+  ylab("Residual")
+```
+
+### RMSE
+The RMSE is 13035.19, which is about 16% smaller than the simple model RMSE 15568. By including more features and interactions, the final model can have better performace.
+
+```{r}
+rmse2
+```
+### Model evaluation
+
+We also checked the model using the following criteria. The results of both the simple model and the complex model are shown in the table below. The performace of complex model imporves in RMSE, bias and deviation. 
+```{r}
+kable(res)
+```
+
+### model testing
+
+The RMSE on the test data set is smaller than the simple model, which means the final model can do a relatively good job on this task.
+
+### Model result
+Top 10 undervalued and overvalued houses are shown in the tables below. The most undervalued house is the one with parcel ID 528102010. We may invest in this house and sell it after the price rises. The most overvalued house is the one with parcel ID 533206020. We may sell this house now since its value may drop in the future. 
+```{r}
+
+kable(df1, caption = "Undervalued Houses")
+```
+
+
+```{r}
+
+kable(df2, caption = "Overvalued Houses")
+```
+
 
 5. Conclusion (10 points): must include a summary of results and a discussion of things learned
 
