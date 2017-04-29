@@ -25,13 +25,13 @@ load("ames_test.Rdata")
 
 * The second issue we found in the data is that new levels are identified in the test data, which causes error messages when making predictions. After using `table()` to check the new levels, we found the new levels only contain one data point, so we decided to classify the the new level to its closest class. For example, `Kitchen.Qual` contains 1 "Po"(poor) in the test data which is a new level, so we reclassify this data point as "Fa"(fair) which is its closest class. The variables that are dealt with this way include `Kitchen.Qual`, `Heating.QC`, `Electrical`, `Condition.2`, `Neighborhood`.
 
-* The third issue we found is that `Lot.Frontage` and `Garage.Yr.Blt` are two continuous variables with a lot of NAs. We are not able to create a new level for the NAs as what we did to the categorical variables. After checking the codebook, we found `Lot.Fontage` might not be useful in predicting the price, which is also proved to be unimportant when we try to fit the boosting model, so we simply droped this variable.
+* The third issue we found is that `Lot.Frontage` and `Garage.Yr.Blt` are two continuous variables with a lot of NAs. We are not able to create a new level for the NAs as what we did to the categorical variables. After checking the codebook, we found `Lot.Fontage` might not be useful in predicting the price, which is also proved to be unimportant when we try to fit the boosting model, so we simply droped these two variable.
 
-* Lastly, we created a few new categorical variables for interaction.
+* Lastly, we created a few new categorical variables for potential interaction.
 
 ### Eliminate Outliers
 
-* Based on the ordered boxplots of `price` vs. `Neighborhood`(showed below), we found the two most expensive neighborhoods "NridgHt" and "NoRidge" have four properties with extremely high prices(>$580,000). Since they are far away from the main price cluster, we decided to treat them as outliers and remove them. We also check the other neighborhoods and found that the neighborhood "Gilbert" and "NAmes" also have prices extremely high. Those prices are also removed.
+* Based on the ordered boxplots of `price` vs. `Neighborhood`(showed below), we found the two most expensive neighborhoods "NridgHt" and "NoRidge" have few properties with extremely high prices(>$500,000). Since they are far away from the main price cluster, we decided to treat them as outliers and remove them. We also check the other neighborhoods and found that the neighborhood "Gilbert" and "NAmes" also have prices extremely high. Those prices are also removed.
 
 ```{r}
 # price v.s. neighborhood
@@ -46,17 +46,14 @@ ggplot(ames_train, aes(x=reorder(Neighborhood, price, FUN=median), y=price))+
 
 ### Transform Data and Fit Model
 
-* Transforamtion of response variable `price`:
-We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots show below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found `price` needs a log transformation. 
+* Transforamtion of the response variable `price`:
+We first fitted a simplest model called `simple_model` to identify possible transformations of response variable `price`. The diagnostic plots showed below indicate a non-constant variance of the residuals, which means a transformation is needed for `price`. With the help of `boxcox()` function and the plot produced below, we found that `price` needs a log transformation. 
 
-* Model build and model selection:
-We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as TotalSq an area. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.$$\\\\$$
+* Model fitting and model selection:
+We first putted in a few variables that are intuitively important as out base model and kept all the variables put in significant. The variables we chose include `TotalSq`, `Year.Built`, `Garage.Area`, `Overall.Qual`, `Kitchen.Qual`, `Garage.Cond`, etc. Based on this base model, forward selection was used to select more variables that can be included in our model and improve the prediction accuracy. In this process we try to avoid the variables might be correlated with other variables, such as `TotalSq` an `area`. With the help of the diagonostic plots, we also removed some outliers, and finally end up with a model with 20 variables.We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads us to our final initial model.$$\\\\$$ 
 
-We compared our base model and models with selected added terms from stepwise selection, then used anova to show the significance of adding those variables. All of the added variables are significant, which leads our to our final initial model. 
-
+* Results and explanation of coeficients:
 Based on the summary table of the selected model, all the selected continuous variables are extremely significant. These continuous variables include `area`, `Year.Built`, `Year.Remod.Add`, `Garage.Area`, `Overall.Qual`, `Lot.Area`, `BsmtFin.SF.1`, `Overall.Cond`, `Total.Bsmt.SF`, `Bsmt.Full.Bath` and `Screen.Porch`. Additionally, some categorical variables having a lot of significant levels are selected, such as `Neighborhood`, `Kitchen.Qual`, `Exter.Qual`.$$\\\\$$
-
-Explanation of coeficients:
 
 a. Area is the most significant continuous variable in the model with a coefficient of 1.373e-03, which indicates when the other conditions stay the same, one unit increase in area leads to exp(2.702e-04)=1.0002 times of original price. The reason for having such a small increasing ratio is that the 1.0002 times a price with a large magnitude can still lead to a big increment.  
 b. Kichen.Qual if the most significant categorical variable. The base case is level "Ex". Level "Gd" has a coefficient of -5.298e-02, which means properties with a good quality kitchen have prices exp(-5.298e-02)=0.948 times of the prices of properties with an excellent quality kitchen. Level "TA" and "Fa" have lower ratios 0.9296 and 0.9218 respectively, which indicates properties with a better kitchen will have a higher price. 
@@ -66,8 +63,11 @@ The full R code and analysis is shown below.
 # clean data
 clean_data = function(xdata){
 xdata %>%
-    mutate(Alley = as.factor(ifelse(is.na(as.character(Alley)), 
+    mutate(# replace NAs with new levels
+           Alley = as.factor(ifelse(is.na(as.character(Alley)), 
                                     "No alley access", as.character(Alley))),
+           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
+                                           "Fa", as.character(Bsmt.Qual))),
            Bsmt.Qual = as.factor(ifelse(is.na(as.character(Bsmt.Qual)), 
                                            "No Basement", as.character(Bsmt.Qual))),
            Bsmt.Cond = as.factor(ifelse(is.na(as.character(Bsmt.Cond)), 
@@ -82,10 +82,6 @@ xdata %>%
            Bsmt.Unf.Rate.SF = ifelse(Total.Bsmt.SF!=0, Bsmt.Unf.SF/Total.Bsmt.SF, 0),
            Bsmt.Full.Bath = ifelse(is.na(Bsmt.Full.Bath),0,Bsmt.Full.Bath),
            Bsmt.Half.Bath = ifelse(is.na(Bsmt.Half.Bath),0,Bsmt.Half.Bath),
-           #Bsmt.Bath = as.factor(ifelse(Bsmt.Half.Bath!=0,
-           #                             Bsmt.Full.Bath+0.5,Bsmt.Full.Bath)),
-           #Bath = as.factor(ifelse(Half.Bath!=0,
-           #                             Full.Bath+0.5,Full.Bath)),
            Fireplace.Qu = as.factor(ifelse(is.na(as.character(Fireplace.Qu)), 
                                            "No Fireplace", as.character(Fireplace.Qu))),
            Garage.Type = as.factor(ifelse(is.na(as.character(Garage.Type)),
@@ -93,14 +89,16 @@ xdata %>%
            Garage.Finish = as.factor(ifelse(is.na(as.character(Garage.Finish))|
                                               as.character(Garage.Finish) == "",
                                            "No Garage", as.character(Garage.Finish))),
+           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
+                                          "Gd", as.character(Garage.Qual))),
            Garage.Qual = as.factor(ifelse(is.na(as.character(Garage.Qual)),
                                            "No Garage", as.character(Garage.Qual))),
            Garage.Cond = as.factor(ifelse(as.character(Garage.Cond)=="Ex", 
                                           "Gd", as.character(Garage.Cond))),
-           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|as.character(Garage.Cond)=="Po",
+           Garage.Cond = as.factor(ifelse(is.na(as.character(Garage.Cond))|
+                                            as.character(Garage.Cond)=="Po",
                                            "No Garage", as.character(Garage.Cond))),
-           Pool.Area = as.factor(ifelse(Pool.Area==0,
-                                           "N", "Y")),
+           # deal with new level issue in test data
            Fence = as.factor(ifelse(is.na(as.character(Fence)),
                                            "No Fence", as.character(Fence))),
            Misc.Feature = as.factor(ifelse(is.na(as.character(Misc.Feature)),
@@ -108,25 +106,21 @@ xdata %>%
            Mas.Vnr.Type = as.factor(ifelse(as.character(Mas.Vnr.Type) == "",
                                            "None", as.character(Mas.Vnr.Type))),
            Mas.Vnr.Area = ifelse(is.na(Mas.Vnr.Area),0,Mas.Vnr.Area),
-           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2,
-                                  Garage.Yr.Blt),
            Kitchen.Qual = as.factor(ifelse(as.character(Kitchen.Qual)=="Po", 
                                            "Fa", as.character(Kitchen.Qual))),
            Heating.QC = as.factor(ifelse(as.character(Heating.QC)=="Po", 
                                          "Fa", as.character(Heating.QC))),
-           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
-           Garage.Qual = as.factor(ifelse(as.character(Garage.Qual)=="Ex", 
-                                          "Gd", as.character(Garage.Qual))),
            Electrical = as.factor(ifelse(as.character(Electrical) == "", 
                                          "SBrkr", as.character(Electrical))),
-           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in% c("Artery","RRAn","RRAe"),
+           Condition.2 = as.factor(ifelse(as.character(Condition.2) %in%
+                                            c("Artery","RRAn","RRAe"),
                                           "Feedr", as.character(Condition.2))),
-           Bsmt.Qual = as.factor(ifelse(as.character(Bsmt.Qual)=="Po", 
-                                           "Fa", as.character(Bsmt.Qual))),
-           #Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Veenerk",
-           #                                "StoneBr", as.character(Neighborhood))),
            Neighborhood = as.factor(ifelse(as.character(Neighborhood)=="Blueste",
-                                          "NPkVill", as.character(Neighborhood)))
+                                          "NPkVill", as.character(Neighborhood))),
+           # create new variables
+           Enclosed.Porch.is = as.factor(ifelse(Enclosed.Porch==0,"N","Y")),
+           Pool.Area = as.factor(ifelse(Pool.Area==0,"N", "Y")),
+           Garage.Yr.Blt = ifelse(is.na(Garage.Yr.Blt), Year.Built-2, Garage.Yr.Blt)
           )%>%
     dplyr::select(-c(Lot.Frontage,Pool.QC,Pool.Area))
 }
@@ -173,7 +167,6 @@ model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Over
 anova(base, base1, base2, base3, base4, base5, model1)
 
 # final model
-# ames_train = ames_train[-c(167,460,183),]
 model1 = lm(log(price) ~ area + Year.Built + Year.Remod.Add + Garage.Area + Overall.Qual + Kitchen.Qual + Neighborhood +log(Lot.Area) + BsmtFin.SF.1 + Overall.Cond + Total.Bsmt.SF + Central.Air + Bsmt.Full.Bath + Screen.Porch  + Exter.Qual + Bldg.Type + Bsmt.Qual + Garage.Cond  + Heating.QC, data=ames_train)
 summary(model1)
 
@@ -233,20 +226,28 @@ Update your predictions using your complex model to provide point estimates and 
 You may iterate here as much as you like exploring different models until you are satisfied with your results.
 
 ### Model Fitting
-1. Variable Selection
-We selected a subgroup of variables out of all the predictors by the following criterion.
 
-* Some variables are highly imbalanced. For example, `Utilities` has three categories, but one of the category has 99% of the observations in it. There is small variation and little information within these variables. Thus, these variables are out of our consideration. 
+We decided to keep using linear regression to fit the data. Variable Selection, data transformation, and interaction between variables are three steps we considered. 
+
+1. Variable Selection
+
+We selected a subgroup of variables out of all the predictors by the following criterion.
+* Some variables are highly imbalanced. For example, `Utilities` has three categories, but one of the category has 99% of the observations in it. There is small variation and little information within these variables. Thus, these variables are out of our consideration. The fucntion `nearZeroVar()` in package `caret` was used to identify these variables. Both continuous variables and categorical variables can be identified.
 * Some variables have a large proportion of missing values. For instance, `Alley` has 1395 missing values, consisting of 93% of the training data. We remove these variables since they are noninformative and may cause damage to our models.
 * There is also multicolinearity in the training data. For example, `area` and `TotalSq` have a correlation around 0.99. Since To avoid multicolinearity, we will not consider `area` in our models. 
 
-After removing imbalanced, missing, and correlated variables, we ended up with 37 predictors. We built our models based on these predictors. 
+After removing imbalanced, missing, and correlated variables, we ended up with 41 predictors. We built our models based on these predictors. 
 
 2. Data Transformation 
-Based on the density plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
 
-We decided to use Gradient Boosting for linear regression to fit the data. We checked the data and splitted the training set into qualitative variables and quantitative variables. And we found out that among all qualitative ones, 12 have near zero variance, which indicate that the frequency of the most common value to the frequency of the second most common value is large. In this case, we deleted those variables. Among all quantitative variables, 8 have near zero variance, and thus we removed them. Since we only chose quantitaive variables which have no missing values,there is no need to do imputation. Here, we planned to use gibbs sampler and PCA to do imputation. Since imputation over qualitative variables introduces bias, we thus simply converted NAs into a new factor.
-Then, we need to convert qualitative predictors to dummy variables in order to use XGBoost model.
+a. log transformation: based on the histogram plots of continuous variables, we found out that some of them are extremely skewed. We took log transformation so that they become more bell shaped. One problem of log transformation is that original zero values change to negative infinity. In order to avoid infinity values, we add 1 unit to those variables with zeros values.
+b. polynomial relationships: base on the plots of price vs. some of the features, we found `Year.Built` and `Year.Remod.Add` have non-linear relationships with price. We add polynomial terms on these two variables.
+c. factorize continuous variables: some continuous variables are discrete with less than 20 levels and their relationships with price are not directly linear, such as `MS.SubClass` `Overall.Cond`, we decided to factorize those variables instead of keeping them as numeric values.
+
+3. Interactions
+
+Interactions between variables are also identified by plotting. One significant interaction is `TotalSq` between `House.Style`, which means that for different house style, the slope of the their linear relationship with price is different. We found that the interaction variable added to the `TotalSq` is a variable that can indicate the overall feature of a property. We tried to find some other variables that can also show the overall feature of a property and then added them as interaction terms. Such variables include `Heating.QC`,`Kitchen.Qual`, etc. We also identified some other combination of variables that may have interactions. Such combinations include `Lot.Area` vs. `Lot.shape` and `Garage.Type` vs. `Garage.Area`.
+
 ```{r}
 model1 = lm(log(price) ~  log(TotalSq)*(Neighborhood + House.Style +
                                           Exterior.2nd + Heating.QC + Kitchen.Qual) + 
@@ -281,42 +282,44 @@ save(predictions, file="predict.Rdata")
 1. Model Diagnostics 
 For our complex model, we plotted residuals against fitted values. All the residuals clound around zero with no particular patterns, so our model does a decent job. 
 ```{r}
-# training dataset
-pred.training.xgboost <- predict(house.xgboost, transform_data(ames_train), missing=NA)
-Yhat.train = exp(pred.training.xgboost)
+
 # residual plot
-residul = ames_train$price - Yhat.train
-qplot(x = Yhat.train, y = residul) +
+residul = ames_train$price - Yhat.train[,'fit']
+qplot(x = Yhat.train[,'fit'], y = residul) +
   theme_bw()+
   xlab("Fitted Values")+
   ylab("Residual")
 ```
 
-We also checked the model using the following criteria. Coverage is not available for boosting. The results of both the simple model and the complex model are shown in the table below.  
+We also checked the model using the following criteria. The results of both the simple model and the complex model are shown in the table below. The performace of complex model imporves in RMSE, bias and deviation.  
 
 ```{r}
-rmse2 = rmse(Yhat2, ames_test$price)
-bias2 = bias(Yhat2, ames_test$price)
-maxDeviation2 = maxDeviation(Yhat2, ames_test$price)
-meanDeviation2 = meanDeviation(Yhat2, ames_test$price)
+rmse2 = rmse(Yhat.test[,'fit'], ames_test$price)
+bias2 = bias(Yhat.test[,'fit'], ames_test$price)
+maxDeviation2 = maxDeviation(Yhat.test[, 'fit'], ames_test$price)
+meanDeviation2 = meanDeviation(Yhat.test[,'fit'], ames_test$price)
+coverage2 = coverage(ames_test$price, Yhat.test[,2], Yhat.test[,3])
 
 res = data.frame(rmse = c(rmse1, rmse2),
                  bias = c(bias1, bias2),
                  maxDeviation = c(maxDeviation1, maxDeviation2),
                  meanDeviation = c(meanDeviation1, meanDeviation2),
-                 coverage = c(coverage1, NA)
+                 coverage = c(coverage1, coverage2)
                  )
 rownames(res) = c("simple model", "complex model")
 kable(res)
 ```
 
 2. Model Checking
-Since gradient boosing is hard to compute by hand, we cannot directly use calculators to obtain house price of first observation in both train and test datasets. Instead, we used R function to calculate them. For first observation in the training data, the prediction is 143400, which is a bit greater than the true value 137000. For the training data, the first prediction is 194059, close to the true value 192100. 
+We can do the model checking by using the slected features and interactions, model coefficients and intercept. 
+The first observation in the training data, the prediction is 176547.7, which is higher than the true value 137000.  
+For the testing data, the prediction is 190388.6, which is close to the true value 192100.
+
 
 3. Model Results
-Top 10 undervalued and overvalued houses are shown in the tables below. The most undervalued house is the one with parcel ID 528102010. We may invest in this house and sell it after the price rises. The most overvalued house is the one with parcel ID 921128020. We may sell this house now since its value may drop in the future. 
+Top 10 undervalued and overvalued houses are shown in the tables below. The most undervalued house is the one with parcel ID 528102010. We may invest in this house and sell it after the price rises. The most overvalued house is the one with parcel ID 533206020. We may sell this house now since its value may drop in the future. 
 ```{r}
-residual = Yhat2 - ames_test$price
+residual = Yhat.test[,1] - ames_test$price
 ntest = dim(ames_test)[1]
 nleft = ntest - 10
 
@@ -333,7 +336,7 @@ kable(df1, caption = "Undervalued Houses")
 
 
 ```{r}
-residual = ames_test$price - Yhat2
+residual = ames_test$price - Yhat.test[,1]
 ntest = dim(ames_test)[1]
 nleft = ntest - 10
 id2 = which(residual > least_over)
