@@ -250,18 +250,18 @@ Based on the density plots of continuous variables, we found out that some of th
 We decided to use Gradient Boosting for linear regression to fit the data. We checked the data and splitted the training set into qualitative variables and quantitative variables. And we found out that among all qualitative ones, 12 have near zero variance, which indicate that the frequency of the most common value to the frequency of the second most common value is large. In this case, we deleted those variables. Among all quantitative variables, 8 have near zero variance, and thus we removed them. Since we only chose quantitaive variables which have no missing values,there is no need to do imputation. Here, we planned to use gibbs sampler and PCA to do imputation. Since imputation over qualitative variables introduces bias, we thus simply converted NAs into a new factor.
 Then, we need to convert qualitative predictors to dummy variables in order to use XGBoost model.
 ```{r}
-model1 = lm(log(price) ~  log(TotalSq)*(Neighborhood + House.Style + 
-                                          Exterior.2nd + Heating.QC + Kitchen.Qual) + 
-              Condition.1 + log(Lot.Area)*Lot.Shape + factor(Overall.Qual) +
-              factor(Overall.Cond) + factor(MS.SubClass)+
+model1 = lm(log(price) ~  log(TotalSq)*(Neighborhood + House.Style + Exterior.2nd + Heating.QC + Kitchen.Qual) + 
+              Condition.1 + 
+              log(Lot.Area)*Lot.Shape + 
+              factor(Overall.Qual) + factor(Overall.Cond) + factor(MS.SubClass)+
               poly(Year.Built,3) + poly(Year.Remod.Add,2) + 
-              Bsmt.Exposure + Bsmt.Qual + BsmtFin.Type.1 + BsmtFin.SF.1 +
-              Bsmt.Unf.SF+1 +  Garage.Type*(Garage.Area) + Garage.Finish +
-              Exterior.1st  + Foundation +Bedroom.AbvGr + Full.Bath + 
-              Half.Bath + Kitchen.AbvGr + Fireplace.Qu + Fireplaces  + 
-              Lot.Config + Fence + Wood.Deck.SF + log(Open.Porch.SF+1) + 
-              log(Screen.Porch+1) + Roof.Style + Mas.Vnr.Type +
-              Mas.Vnr.Area, data=ames_train)
+              Bsmt.Exposure + Bsmt.Qual + Bsmt.Full.Bath + BsmtFin.Type.1 + BsmtFin.SF.1 + Bsmt.Unf.SF  +  
+              Garage.Type*(Garage.Area) + Garage.Finish + 
+              Exterior.1st + Foundation + Functional + Street + 
+              Bedroom.AbvGr + Full.Bath + Half.Bath + Kitchen.AbvGr +
+              Fireplace.Qu + Fireplaces + Lot.Config + Fence + 
+              Wood.Deck.SF + log(Open.Porch.SF+1) + log(Screen.Porch+1) + Roof.Style +
+              Mas.Vnr.Type + Mas.Vnr.Area, data=ames_train)
 ```
 
 
@@ -366,10 +366,14 @@ Once you are satisfied with your model, provide a write up of your data analysis
 3. Development of the final model (20 points)
 
 * Final model: must include a summary table
+```{r}
+
+```
 
 * Variables: must include an explanation
 
 * Variable selection/shrinkage: must use appropriate method and include an explanation
+
 
 4. Assessment of the final model (25 points)
 
