@@ -10,7 +10,6 @@ library(MASS)
 library(dplyr)
 library(ggplot2)
 library(knitr)
-library(MASS)
 ```
 
 ## Part I: Simple Model
@@ -283,16 +282,18 @@ save(predictions, file="predict.Rdata")
 Summary table of the complex model:
 ```{r}
 summaries = summary(model1)
-df = summaries$coefficients[c("(Intercept)","log(Lot.Area)","poly(Year.Built, 3)1","poly(Year.Built, 3)2",
-                         "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1","poly(Year.Remod.Add, 2)2","Bsmt.ExposureGd","Bsmt.ExposureMn","Bsmt.Full.Bath","Bsmt.Unf.SF","StreetPave","Full.Bath","Half.Bath","Wood.Deck.SF","log(Open.Porch.SF + 1)","log(Screen.Porch + 1)"),]
-kable(df)
+df = summaries$coefficients[c("(Intercept)","log(Lot.Area)",
+                              "poly(Year.Built, 3)1","poly(Year.Built, 3)2",
+                         "poly(Year.Built, 3)3","poly(Year.Remod.Add, 2)1",
+                         "poly(Year.Remod.Add,2)2","Bsmt.ExposureGd",
+                         "Bsmt.ExposureMn","Bsmt.Full.Bath","Bsmt.Unf.SF",
+                         "StreetPave","Full.Bath","Half.Bath","Wood.Deck.SF",
+                         "log(Open.Porch.SF + 1)","log(Screen.Porch + 1)"),]
+kable(df, caption = "Model Summary")
 ```
 We picked 41 features and fit a simple linear regression model. Among them we picked some whose p-value are most significant as the table shows above.  We can conclude that area of the lot, the year to build, the year to renew, basement and bathroom conditions and etc. all play key roles in determining house prices. 
-Furthermore, we investigated that the lot area and house prices are postively correlated: 10 percent increase in lot area will lead to $1.1^{6.975125} -1$ (around 90 percent) increase in price. 
-Moreover, we found out that bathroom conditions and area of wood deck, open porch and screen porch all have positive 
-correlation with price. a 1-unit increase in the area of wood deck leads to $e^{0.1262579}$ (around 1.134575) increase in price. Last but not least, 10 percent increase in areas of open porch and screen porch will lead to $1.1^{0.0038} -1$ (around 0.03 percent) and $1.1^{0.0062} -1$ (around 0.05 percent) increase in house prices respectively.
 
-
+Furthermore, we investigated that the lot area and house prices are postively correlated: 10 percent increase in lot area will lead to $1.1^{6.975125} -1$ (around 90 percent) increase in price. Moreover, we found out that bathroom conditions and area of wood deck, open porch and screen porch all have positive correlation with price. a 1-unit increase in the area of wood deck leads to $e^{0.1262579}$ (around 1.134575) increase in price. Last but not least, 10 percent increase in areas of open porch and screen porch will lead to $1.1^{0.0038} -1$ (around 0.03 percent) and $1.1^{0.0062} -1$ (around 0.05 percent) increase in house prices respectively.
 
 ### Model Evaluation
 1. Model Diagnostics
