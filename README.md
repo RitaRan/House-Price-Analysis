@@ -1,7 +1,18 @@
 [![wercker status](https://app.wercker.com/status/e5f6325b0d4e3519a9b3ad71cfa37d08/s/master "wercker status")](https://app.wercker.com/project/byKey/e5f6325b0d4e3519a9b3ad71cfa37d08)
 
-# Final-Project
+# Team Members
+- Guoyin Wang
+- Ran Zhou
+- Xingyu Yan
+- Yijung Jiang
 
+# File Instruction
+- writeup.pdf is our final analysis report, and writeup.Rmd is the corresponding R markdown file.
+- slides.pdf is our final presentation 
+- Final-Data-Analysis.Rmd is a detailed instruction of this project
+- project.Rmd is a progress records of our analysis, it is edited based on Final-Data-Analysis.Rmd
+
+# Final-Project Requirement
 
 You should have a repo called Final_Project_Team_X where the X is your team number or name. Click on the repo's name and then Click on Clone or Download. Copy the URL for the repo for the next step.
 
